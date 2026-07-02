@@ -3,15 +3,23 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Treinador Avelitrix v7</title>
-  <meta name="description" content="Treinador Avelitrix — registro rápido de jogo e apresentação de métricas para atleta e treinador." />
+  <title>Avelitrix Coach</title>
+  <meta name="description" content="Avelitrix Coach — registro rápido de jogo e apresentação de métricas para atleta e treinador." />
+  <meta name="theme-color" content="#07131f" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Avelitrix Coach" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
   <div class="app-shell" id="appShell">
     <header class="app-header" id="appHeader">
       <div>
-        <p class="eyebrow">Treinador Avelitrix</p>
+        <p class="eyebrow">Avelitrix Coach</p>
         <h1>Registro e leitura de jogo</h1>
         <p class="context-line">Entrada rápida para pais/treinadores. A tradução técnica aparece depois nas métricas.</p>
       </div>
@@ -333,5 +341,15 @@
   <script>window.MathJax = { tex: { inlineMath: [["\\(","\\)"],["$","$"]] }, svg: { fontCache: "global" } };</script>
   <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
   <script src="js/app.js"></script>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./service-worker.js').catch(err => {
+          console.warn('Service worker não registrado:', err);
+        });
+      });
+    }
+  </script>
 </body>
 </html>
