@@ -27,3 +27,16 @@ Atualização de nome:
 - name: Avelitrix Coach
 - short_name: AveliCoach
 - O Android/Chrome costuma usar o short_name na tela inicial.
+
+
+Correção de nome — versão nome corrigido:
+- name: AveliCoach
+- short_name: AveliCoach
+- id: /avelicoach/
+- title HTML: AveliCoach
+- apple-mobile-web-app-title: AveliCoach
+- manifest com query string para evitar cache antigo
+- service worker com novo CACHE_NAME
+
+Importante:
+Se o Android/Chrome continuar mostrando o nome antigo, desinstale o app antigo da tela inicial, limpe o cache/site data do domínio usado para hospedar e instale novamente. O Chrome pode reutilizar o manifesto antigo enquanto o service worker/cache antigo ainda estiver ativo.

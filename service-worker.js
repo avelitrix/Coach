@@ -1,4 +1,4 @@
-const CACHE_NAME = 'avelitrix-coach-pwa-v1';
+const CACHE_NAME = 'avelicoach-pwa-v2-nome-corrigido';
 const APP_SHELL = [
   './',
   './index.html',
