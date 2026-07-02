@@ -1,6 +1,6 @@
 {
   "name": "Avelitrix Coach",
-  "short_name": "Avelitrix",
+  "short_name": "AveliCoach",
   "description": "Registro rápido de jogo e métricas para treinador.",
   "start_url": "./index.html",
   "scope": "./",

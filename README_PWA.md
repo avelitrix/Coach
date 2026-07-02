@@ -21,3 +21,9 @@ Observações importantes:
 - Para o Chrome oferecer instalação como PWA, normalmente não basta abrir o arquivo local por file://.
 - O ideal é hospedar em HTTPS, GitHub Pages, Netlify, Vercel ou servidor local de teste.
 - O app continua salvando os dados no localStorage do navegador/dispositivo.
+
+
+Atualização de nome:
+- name: Avelitrix Coach
+- short_name: AveliCoach
+- O Android/Chrome costuma usar o short_name na tela inicial.
