@@ -196,26 +196,20 @@
 
           <div class="quick-line">
             <span class="line-title">Momento</span>
-            <div class="choice-row seven">
+            <div class="choice-row two">
               <button class="choice" data-field="moment" data-value="normal" type="button">Normal</button>
               <button class="choice" data-field="moment" data-value="pressao" type="button">Pressão</button>
-              <button class="choice" data-field="moment" data-value="break_point" type="button">Break point<br><small>(quebrar o saque)</small></button>
-              <button class="choice" data-field="moment" data-value="game_point" type="button">Game point<br><small>(fechar o game)</small></button>
-              <button class="choice" data-field="moment" data-value="tie_break" type="button">Tie-break<br><small>(desempate)</small></button>
-              <button class="choice" data-field="moment" data-value="set_point" type="button">Set point<br><small>(fechar o set)</small></button>
-              <button class="choice" data-field="moment" data-value="match_point" type="button">Match point<br><small>(fechar a partida)</small></button>
             </div>
           </div>
 
           <div class="quick-line">
             <span class="line-title">Tipo da jogada</span>
-            <div class="choice-row six">
+            <div class="choice-row five">
               <button class="choice" data-field="playType" data-value="saque_mais_um" type="button">Saque +1</button>
               <button class="choice" data-field="playType" data-value="devolucao" type="button">Devolução</button>
               <button class="choice" data-field="playType" data-value="troca" type="button">Troca</button>
               <button class="choice" data-field="playType" data-value="defesa" type="button">Defesa</button>
               <button class="choice" data-field="playType" data-value="rede" type="button">Rede</button>
-              <button class="choice" data-field="playType" data-value="pressao" type="button">Pressão</button>
             </div>
           </div>
 
@@ -281,6 +275,13 @@
           </div>
         </div>
 
+
+
+        <div class="detail-group chart-card">
+          <div class="mini-head"><h3>Presença no jogo <button class="comparison-info" data-info="presenca_jogo" type="button">i</button></h3><small>Dinâmica de presença ao longo do tempo real do jogo.</small></div>
+          <div id="gamePresenceChart" class="presence-chart-wrap"></div>
+          <p class="presence-legend">Linhas acima de zero indicam maior presença no jogo. Linhas abaixo de zero indicam perda de presença. Quando uma linha cruza a linha central, há mudança de domínio. Quando as duas linhas ficam próximas de zero, o trecho está equilibrado.</p>
+        </div>
         <div class="detail-group">
           <div class="mini-head"><h3>Análise do adversário</h3><small>Os gráficos abaixo se referem ao adversário.</small></div>
           <div class="charts-grid">
@@ -303,6 +304,7 @@
         <div class="export-actions">
           <button id="continueGameBtn" class="primary-btn" type="button">Continuar registro</button>
           <button id="exportGameJsonBtn" class="ghost-btn" type="button">Exportar JSON do jogo</button>
+          <button id="exportGamePdfBtn" class="ghost-btn" type="button">Exportar PDF do jogo</button>
           <button id="deleteGameBtn" class="ghost-btn danger-soft" type="button">Excluir jogo</button>
         </div>
       </section>
@@ -340,6 +342,7 @@
 
   <script>window.MathJax = { tex: { inlineMath: [["\\(","\\)"],["$","$"]] }, svg: { fontCache: "global" } };</script>
   <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <script src="js/app.js"></script>
 
   <script>

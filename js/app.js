@@ -98,6 +98,22 @@ const comparisonMetricDefs = {
 function metricObj(count,pctValue){ return {count, pct:pctValue, display:`${count} (${pctValue}%)`}; }
 function todayISO(){ return new Date().toISOString().slice(0,10); }
 function nowHM(){ return new Date().toTimeString().slice(0,5); }
+function localDateISO(d=new Date()){
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+function localTimeHMS(d=new Date()){
+  return d.toTimeString().slice(0,8);
+}
+function localDateTimeISO(d=new Date()){
+  const offset = -d.getTimezoneOffset();
+  const sign = offset >= 0 ? '+' : '-';
+  const hh = String(Math.floor(Math.abs(offset)/60)).padStart(2,'0');
+  const mm = String(Math.abs(offset)%60).padStart(2,'0');
+  return `${localDateISO(d)}T${localTimeHMS(d)}${sign}${hh}:${mm}`;
+}
 function uid(){ return 'jg_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,7); }
 function escapeHtml(v){ return String(v ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
 function loadGames(){ try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; } }
@@ -172,7 +188,51 @@ function renderScore(){
 }
 function renderChoices(){ $$('.choice').forEach(btn=>btn.classList.toggle('selected', state.draft[btn.dataset.field]===btn.dataset.value)); const isError=state.draft.ending==='erro'||state.draft.ending==='dupla_falta'||!state.draft.ending; $$('.error-only').forEach(el=>el.classList.toggle('hidden',!isError)); $$('.not-error-only').forEach(el=>el.classList.toggle('hidden',isError)); renderScore(); }
 function handleChoice(btn){ state.draft[btn.dataset.field]=btn.dataset.value; renderChoices(); }
-function savePoint(e){ e.preventDefault(); if(!state.activeGame) newGame(); const filled={...state.draft}; const p={ id:uid(), createdAt:new Date().toISOString(), order:state.activeGame.points.length+1, server:filled.server||'athlete', winner:val(filled.winner), ending:val(filled.ending), actor:val(filled.actor), stroke:val(filled.stroke), place:val(filled.place), target:val(filled.target), moment:val(filled.moment), playType:val(filled.playType), note:$('#pointNote').value.trim()}; state.activeGame.points.push(p); state.draft=emptyDraft(p.server||'athlete'); $('#pointNote').value=''; persistActiveGame(); renderChoices(); }
+function savePoint(e){
+  e.preventDefault();
+  if(!state.activeGame) newGame();
+  const filled = {...state.draft};
+  const savedAt = new Date();
+  const p = {
+    id: uid(),
+    order: state.activeGame.points.length + 1,
+
+    // Instante real do registro do ponto.
+    // createdAt fica em UTC para ordenação e integração futura.
+    createdAt: savedAt.toISOString(),
+    savedAt: savedAt.toISOString(),
+
+    // Campos locais explícitos para leitura humana e análise da dinâmica do jogo.
+    savedAtLocal: localDateTimeISO(savedAt),
+    savedDate: localDateISO(savedAt),
+    savedTime: localTimeHMS(savedAt),
+    savedTimestampMs: savedAt.getTime(),
+
+    // Cópia da data do jogo, para cruzar ponto x partida mesmo em jogos registrados depois.
+    matchDate: state.activeGame.date || localDateISO(savedAt),
+
+    server: filled.server || 'athlete',
+    winner: val(filled.winner),
+    ending: val(filled.ending),
+    actor: val(filled.actor),
+    stroke: val(filled.stroke),
+    place: val(filled.place),
+    target: val(filled.target),
+    moment: val(filled.moment),
+    playType: val(filled.playType),
+    note: $('#pointNote').value.trim()
+  };
+
+  state.activeGame.points.push(p);
+  state.activeGame.lastPointSavedAt = p.savedAt;
+  state.activeGame.lastPointSavedAtLocal = p.savedAtLocal;
+  state.activeGame.lastPointSavedTimestampMs = p.savedTimestampMs;
+
+  state.draft = emptyDraft(p.server || 'athlete');
+  $('#pointNote').value = '';
+  persistActiveGame();
+  renderChoices();
+}
 function undoPoint(){ if(state.activeGame?.points?.length){ state.activeGame.points.pop(); persistActiveGame(); renderScore(); } }
 function inPeriod(game){ const s=$('#periodStart').value, e=$('#periodEnd').value; return (!s||game.date>=s)&&(!e||game.date<=e); }
 function isPressure(p){ return ['pressao','break_point','game_point','tie_break','set_point','match_point'].includes(p.moment)||p.playType==='pressao'; }
@@ -381,13 +441,228 @@ function openGameDetail(id){
   showScreen('gameDetail');
 }
 
-function exportPeriod(){ const games=loadGames().filter(inPeriod); download(`treinador-avelitrix-v7-periodo-${$('#periodStart').value}-${$('#periodEnd').value}.json`, JSON.stringify({exportedAt:new Date().toISOString(), version:'v7', period:{start:$('#periodStart').value, end:$('#periodEnd').value}, games}, null, 2)); }
-function exportBackup(){ download(`treinador-avelitrix-v7-backup-${todayISO()}.json`, JSON.stringify({exportedAt:new Date().toISOString(), version:'v7', games:loadGames()}, null, 2)); }
-function exportGame(){ const g=loadGames().find(x=>x.id===state.selectedGameId); if(g) download(`treinador-avelitrix-v7-jogo-${g.date}-${(g.opponent||'adversario').replace(/\s+/g,'-')}.json`, JSON.stringify({exportedAt:new Date().toISOString(), version:'v7', game:g}, null, 2)); }
+
+
+function pdfSafe(v){ return String(v ?? '').replace(/[\u2013\u2014]/g, '-'); }
+function pdfFileSafe(v){ return String(v || 'jogo').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9_-]+/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'').toLowerCase(); }
+function pdfLabel(v){ return pdfSafe(labels[v] || v || 'Não informado'); }
+function addWrappedText(doc, text, x, y, maxW, opts={}){
+  const lines = doc.splitTextToSize(pdfSafe(text), maxW);
+  doc.text(lines, x, y, opts);
+  return y + lines.length * (opts.lineHeight || 5);
+}
+function pdfCheckLib(){
+  if(!window.jspdf?.jsPDF){
+    alert('Biblioteca de PDF ainda não carregou. Verifique a internet, aguarde alguns segundos e tente novamente.');
+    return null;
+  }
+  return window.jspdf.jsPDF;
+}
+function pdfTheme(){
+  return { ink:[31,41,55], muted:[107,114,128], line:[225,229,235], soft:[248,250,252], accent:[0,128,96], cyan:[66,185,214], yellow:[245,181,54], danger:[190,70,70] };
+}
+function pdfMaybePage(doc, y, needed=40){
+  if(y + needed <= 286) return y;
+  doc.addPage();
+  return 18;
+}
+function pdfHeader(doc, title, subtitle){
+  const t=pdfTheme();
+  doc.setTextColor(...t.accent); doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.text('AVELICOACH - RELATÓRIO DO JOGO', 14, 15);
+  doc.setTextColor(...t.ink); doc.setFontSize(18); doc.text(pdfSafe(title), 14, 25);
+  doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.text(pdfSafe(subtitle), 14, 33);
+  doc.setDrawColor(...t.line); doc.line(14, 40, 196, 40);
+  return 50;
+}
+function pdfSectionTitle(doc, title, x, y){
+  const t=pdfTheme(); doc.setTextColor(...t.accent); doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.text(pdfSafe(title).toUpperCase(), x, y); return y+8;
+}
+function pdfCard(doc, x, y, w, h, drawFn){
+  const t=pdfTheme(); doc.setDrawColor(...t.line); doc.setFillColor(255,255,255); doc.roundedRect(x,y,w,h,3,3,'FD'); if(drawFn) drawFn(x,y,w,h); return y+h;
+}
+function pdfMetricGrid(doc, y, cards, cols=4){
+  const gap=4, x0=14, totalW=182, w=(totalW-gap*(cols-1))/cols, h=18;
+  const t=pdfTheme();
+  cards.forEach((c,i)=>{
+    const row=Math.floor(i/cols), col=i%cols; const x=x0+col*(w+gap), yy=y+row*(h+gap);
+    pdfCard(doc,x,yy,w,h,()=>{
+      doc.setTextColor(...t.muted); doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.text(pdfSafe(c.label), x+3, yy+6);
+      doc.setTextColor(...t.ink); doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.text(pdfSafe(c.value), x+3, yy+14);
+    });
+  });
+  return y + Math.ceil(cards.length/cols)*(h+gap) - gap;
+}
+function pdfSmallRows(doc, x, y, w, title, rows){
+  const t=pdfTheme(); const h=12 + rows.length*7.2;
+  pdfCard(doc,x,y,w,h,()=>{
+    pdfSectionTitle(doc,title,x+3,y+7);
+    let yy=y+18;
+    rows.forEach(r=>{
+      doc.setDrawColor(235,238,242); doc.line(x+3, yy+1, x+w-3, yy+1);
+      doc.setTextColor(...t.muted); doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.text(pdfSafe(r[0]), x+3, yy+6);
+      doc.setTextColor(...t.ink); doc.setFont('helvetica','bold'); doc.text(pdfSafe(r[1]), x+w-3, yy+6, {align:'right'});
+      yy += 7.2;
+    });
+  });
+  return y+h;
+}
+function pdfBarChart(doc, x, y, w, h, title, entries, denominator){
+  const t=pdfTheme();
+  pdfCard(doc,x,y,w,h,()=>{
+    pdfSectionTitle(doc,title,x+3,y+7);
+    const data = Object.entries(entries || {}).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]).slice(0,8);
+    const max = Math.max(1, ...data.map(([,v])=>v));
+    const total = denominator || data.reduce((s,[,v])=>s+v,0) || 1;
+    let yy=y+18;
+    if(!data.length){ doc.setTextColor(...t.muted); doc.setFontSize(8); doc.text('Sem dados suficientes.', x+3, yy); return; }
+    data.forEach(([k,v])=>{
+      const label = pdfLabel(k); const pctv = pct(v,total);
+      doc.setTextColor(...t.ink); doc.setFont('helvetica','normal'); doc.setFontSize(7.4); doc.text(label, x+3, yy);
+      const bx=x+3, by=yy+2.2, bw=w-27, bh=2.7;
+      doc.setFillColor(238,241,245); doc.roundedRect(bx,by,bw,bh,1.2,1.2,'F');
+      doc.setFillColor(...t.cyan); doc.roundedRect(bx,by,Math.max(2,bw*v/max),bh,1.2,1.2,'F');
+      doc.setTextColor(...t.ink); doc.setFont('helvetica','bold'); doc.text(`${v} (${pctv}%)`, x+w-3, yy+4.2, {align:'right'});
+      yy += 8.1;
+    });
+  });
+  return y+h;
+}
+function pdfComparisonTable(doc, y, rows){
+  const t=pdfTheme();
+  y = pdfMaybePage(doc, y, 95);
+  pdfSectionTitle(doc,'Comparativo jogador x adversário',14,y); y += 3;
+  const x=14, w=182, labelW=44, colW=(w-labelW)/3, rowH=8.8;
+  doc.setFillColor(...t.soft); doc.setDrawColor(...t.line); doc.roundedRect(x,y,w,9,2,2,'FD');
+  doc.setTextColor(...t.ink); doc.setFont('helvetica','bold'); doc.setFontSize(7.5);
+  doc.text('Parâmetro', x+3, y+6); doc.text('Jogador', x+labelW+colW/2, y+6, {align:'center'}); doc.text('Adversário', x+labelW+colW*1.5, y+6, {align:'center'}); doc.text('Ref. COSAT U14', x+labelW+colW*2.5, y+6, {align:'center'});
+  y += 9;
+  rows.forEach((r,idx)=>{
+    y = pdfMaybePage(doc, y, rowH+8);
+    doc.setDrawColor(235,238,242); doc.setFillColor(idx%2?252:248, idx%2?253:250, idx%2?255:252); doc.rect(x,y,w,rowH,'FD');
+    doc.setTextColor(...t.accent); doc.setFont('helvetica','bold'); doc.setFontSize(6.8); doc.text(pdfSafe(r.label), x+2.5, y+5.7);
+    doc.setTextColor(...t.ink); doc.setFontSize(7.8); doc.text(pdfSafe(r.left), x+labelW+colW/2, y+5.7, {align:'center'}); doc.text(pdfSafe(r.mid), x+labelW+colW*1.5, y+5.7, {align:'center'}); doc.text(pdfSafe(r.ref), x+labelW+colW*2.5, y+5.7, {align:'center'});
+    y += rowH;
+  });
+  return y+8;
+}
+function pdfLineChart(doc, x, y, w, h, title, cfg){
+  const t=pdfTheme();
+  pdfCard(doc,x,y,w,h,()=>{
+    pdfSectionTitle(doc,title,x+3,y+7);
+    const plotX=x+12, plotY=y+18, plotW=w-20, plotH=h-33;
+    const a=cfg.pointsA||[], b=cfg.pointsB||[]; const n=Math.max(a.length,b.length,1);
+    doc.setDrawColor(235,238,242); doc.setLineWidth(.2);
+    [0,25,50,75,100].forEach(v=>{ const yy=plotY+plotH-(v/100)*plotH; doc.line(plotX,yy,plotX+plotW,yy); doc.setTextColor(...t.muted); doc.setFontSize(6.2); doc.text(`${v}%`, plotX-2, yy+1.5, {align:'right'}); });
+    const refY = plotY+plotH-(cfg.benchmark/100)*plotH; doc.setDrawColor(...t.yellow); doc.setLineDashPattern([2,2],0); doc.line(plotX,refY,plotX+plotW,refY); doc.setLineDashPattern([],0); doc.setTextColor(...t.yellow); doc.setFont('helvetica','bold'); doc.setFontSize(6.2); doc.text(`Ref. ${cfg.benchmark}%`, plotX+plotW, refY-1.5, {align:'right'});
+    const pts = arr => arr.map((p,i)=>({ ...p, x:plotX+(n===1?plotW/2:i*plotW/(n-1)), y:plotY+plotH-(Math.max(0,Math.min(100,p.value))/100)*plotH }));
+    const drawSeries=(arr,color)=>{ const P=pts(arr); if(P.length>1){ doc.setDrawColor(...color); doc.setLineWidth(.8); for(let i=0;i<P.length-1;i++) doc.line(P[i].x,P[i].y,P[i+1].x,P[i+1].y); } P.forEach(p=>{ doc.setFillColor(...color); doc.circle(p.x,p.y,1.3,'F'); }); return P; };
+    const A=drawSeries(a,t.cyan), B=drawSeries(b,t.yellow);
+    doc.setTextColor(...t.ink); doc.setFont('helvetica','normal'); doc.setFontSize(6.2);
+    (A.length?A:B).forEach((p,i)=>{ if(i%Math.ceil(n/8 || 1)===0) doc.text(pdfSafe((a[i]||b[i]||{}).label || ''), p.x, y+h-7, {align:'center'}); });
+    doc.setFillColor(...t.cyan); doc.circle(x+w-54,y+8,1.3,'F'); doc.setTextColor(...t.muted); doc.text('Jogador', x+w-51, y+9);
+    doc.setFillColor(...t.yellow); doc.circle(x+w-28,y+8,1.3,'F'); doc.text('Adversário', x+w-25, y+9);
+  });
+  return y+h;
+}
+function pdfNotes(doc, y, title, notes){
+  const t=pdfTheme();
+  y=pdfMaybePage(doc,y,40);
+  pdfSectionTitle(doc,title,14,y); y += 2;
+  const cols=2, gap=4, w=(182-gap)/cols; let x=14; let rowY=y; let maxH=0;
+  notes.forEach((n,i)=>{
+    const textLines = doc.splitTextToSize(pdfSafe(n.text), w-6);
+    const h = 13 + textLines.length*4.2;
+    if(i%cols===0 && i>0){ rowY += maxH + gap; x=14; maxH=0; }
+    rowY = pdfMaybePage(doc,rowY,h+4);
+    pdfCard(doc,x,rowY,w,h,()=>{ doc.setTextColor(...t.accent); doc.setFont('helvetica','bold'); doc.setFontSize(7.2); doc.text(pdfSafe(n.title), x+3, rowY+6); doc.setTextColor(...t.ink); doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.text(textLines, x+3, rowY+12); });
+    maxH=Math.max(maxH,h); x += w+gap;
+  });
+  return rowY+maxH+8;
+}
+function exportGamePdf(){
+  const JS = pdfCheckLib(); if(!JS) return;
+  const g = loadGames().find(x => x.id === state.selectedGameId); if(!g) return;
+  const doc = new JS({orientation:'portrait', unit:'mm', format:'a4'});
+  const a = analyze([g]); const sc = recalcScore(g.points || []);
+  let y = pdfHeader(doc, `Jogo vs ${g.opponent || 'Adversário'}`, `${g.date || ''} - ${g.tournament || 'Sem campeonato'} - ${g.startTime || ''}${g.endTime ? ' às ' + g.endTime : ''}`);
+  y = pdfMetricGrid(doc, y, [
+    {label:'Sets', value:`${sc.sets.athlete}-${sc.sets.opponent}`},
+    {label:'Games', value:`${sc.totalGames.athlete}-${sc.totalGames.opponent}`},
+    {label:'Pontos', value:`${a.won}-${a.lost}`},
+    {label:'Aproveitamento', value:`${a.winPct}%`},
+    {label:'Pontos registrados', value:String(a.total)},
+    {label:'Pontos positivos', value:absPct(a.positiveAthlete.length, a.athleteRelated.length)},
+    {label:'Erros do jogador', value:absPct(a.athleteErrors.length, a.athleteRelated.length || a.total)},
+    {label:'Pressão', value:absPct(a.pressureWon, a.pressureCount)}
+  ], 4) + 8;
+  pdfCard(doc,14,y,182,20,()=>{ const t=pdfTheme(); doc.setTextColor(...t.accent); doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.text('LEITURA RESUMIDA',17,y+7); doc.setTextColor(...t.ink); doc.setFont('helvetica','normal'); doc.setFontSize(8.5); addWrappedText(doc, simplePhrase(a), 17, y+14, 176, {lineHeight:4.5}); }); y += 28;
+  y = pdfComparisonTable(doc, y, comparisonRows(a));
+  const def = comparisonMetricDefs[state.gameTrendMetric] || comparisonMetricDefs.pontos_vencidos;
+  const games = getGamesLastYearFor(g);
+  const playerSeries = games.map(gg => { const aa=analyze([gg]); const m=def.player(aa); return {label:formatShortDate(gg.date), value:m.pct, display:m.display}; });
+  const oppSeries = games.map(gg => { const aa=analyze([gg]); const m=def.opp(aa); return {label:formatShortDate(gg.date), value:m.pct, display:m.display}; });
+  y = pdfMaybePage(doc, y, 85);
+  y = pdfLineChart(doc,14,y,182,75,`Evolução - ${def.label}`, {benchmark:def.benchmark, pointsA:playerSeries, pointsB:oppSeries}) + 8;
+  y = pdfMaybePage(doc,y,78);
+  pdfSectionTitle(doc,'Gráficos do jogador',14,y); y += 4;
+  const chartW=58, chartH=60, gap=4;
+  pdfBarChart(doc,14,y,chartW,chartH,'Como terminou',countBy(a.athleteEndings,'ending'),a.athleteEndings.length);
+  pdfBarChart(doc,14+chartW+gap,y,chartW,chartH,'Erros por golpe',countBy(a.athleteErrors,'stroke'),a.athleteErrors.length);
+  pdfBarChart(doc,14+(chartW+gap)*2,y,chartW,chartH,'Erros por lugar',countBy(a.athleteErrors,'place'),a.athleteErrors.length);
+  y += chartH + 10;
+  y = pdfMaybePage(doc,y,78);
+  pdfSectionTitle(doc,'Gráficos do adversário',14,y); y += 4;
+  pdfBarChart(doc,14,y,chartW,chartH,'Como terminou',countBy(a.opponentEndings,'ending'),a.opponentEndings.length);
+  pdfBarChart(doc,14+chartW+gap,y,chartW,chartH,'Erros por golpe',countBy(a.opponentErrors,'stroke'),a.opponentErrors.length);
+  pdfBarChart(doc,14+(chartW+gap)*2,y,chartW,chartH,'Erros por lugar',countBy(a.opponentErrors,'place'),a.opponentErrors.length);
+  y += chartH + 8;
+  y = pdfNotes(doc,y,'Leitura técnica do jogador',coachNotes(a));
+  y = pdfNotes(doc,y,'Leitura técnica do adversário',opponentNotes(a));
+  const pageCount = doc.internal.getNumberOfPages();
+  for(let i=1;i<=pageCount;i++){ doc.setPage(i); doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(130,140,150); doc.text(`AveliCoach - página ${i}/${pageCount}`, 196, 291, {align:'right'}); }
+  doc.save(`avelicoach-jogo-${g.date || 'sem-data'}-${pdfFileSafe(g.opponent || 'adversario')}.pdf`);
+}
+
+function exportPeriod(){ const games=loadGames().filter(inPeriod); download(`avelicoach-timestamp-periodo-${$('#periodStart').value}-${$('#periodEnd').value}.json`, JSON.stringify({exportedAt:new Date().toISOString(), version:'v7-timestamp', period:{start:$('#periodStart').value, end:$('#periodEnd').value}, games}, null, 2)); }
+function exportBackup(){ download(`avelicoach-timestamp-backup-${todayISO()}.json`, JSON.stringify({exportedAt:new Date().toISOString(), version:'v7-timestamp', games:loadGames()}, null, 2)); }
+function exportGame(){ const g=loadGames().find(x=>x.id===state.selectedGameId); if(g) download(`avelicoach-timestamp-jogo-${g.date}-${(g.opponent||'adversario').replace(/\s+/g,'-')}.json`, JSON.stringify({exportedAt:new Date().toISOString(), version:'v7-timestamp', game:g}, null, 2)); }
 function deleteGame(){ if(!state.selectedGameId) return; if(!confirm('Excluir este jogo?')) return; saveGames(loadGames().filter(g=>g.id!==state.selectedGameId)); state.selectedGameId=null; showScreen('home'); }
 
 function bind(){
-  $('#newGameBtn').onclick=newGame; $('#homeBtn').onclick=()=>showScreen('home'); $$('.choice').forEach(btn=>btn.onclick=()=>handleChoice(btn)); $('#pointForm').onsubmit=savePoint; $('#undoPointBtn').onclick=undoPoint; $('#finishGameBtn').onclick=()=>openMetaDialog(true); $('#matchMetaForm').addEventListener('submit',e=>{e.preventDefault(); saveMeta(); showScreen('home');}); $('#saveMetaContinueBtn').onclick=saveMetaAndContinue; $('#cancelMetaBtn').onclick=()=>$('#matchMetaDialog').close(); $('#periodStart').onchange=renderPanel; $('#periodEnd').onchange=renderPanel; $('#exportPeriodJsonBtn').onclick=exportPeriod; $('#exportBackupBtn').onclick=exportBackup; $('#exportPdfBtn').onclick=()=>window.print(); $('#closeDetailBtn').onclick=()=>showScreen('home'); $('#continueGameBtn').onclick=()=>continueGame(state.selectedGameId); $('#exportGameJsonBtn').onclick=exportGame; $('#deleteGameBtn').onclick=deleteGame; $('#closeInfoBtn').onclick=()=>$('#infoDialog').close(); $$('.seg-btn').forEach(btn=>btn.onclick=()=>{state.trendGranularity=btn.dataset.granularity; renderPanel();});
+  $('#newGameBtn').onclick=newGame; $('#homeBtn').onclick=()=>showScreen('home'); $$('.choice').forEach(btn=>btn.onclick=()=>handleChoice(btn)); $('#pointForm').onsubmit=savePoint; $('#undoPointBtn').onclick=undoPoint; $('#finishGameBtn').onclick=()=>openMetaDialog(true); $('#matchMetaForm').addEventListener('submit',e=>{e.preventDefault(); saveMeta(); showScreen('home');}); $('#saveMetaContinueBtn').onclick=saveMetaAndContinue; $('#cancelMetaBtn').onclick=()=>$('#matchMetaDialog').close(); $('#periodStart').onchange=renderPanel; $('#periodEnd').onchange=renderPanel; $('#exportPeriodJsonBtn').onclick=exportPeriod; $('#exportBackupBtn').onclick=exportBackup; $('#exportPdfBtn').onclick=()=>window.print(); $('#closeDetailBtn').onclick=()=>showScreen('home'); $('#continueGameBtn').onclick=()=>continueGame(state.selectedGameId); $('#exportGameJsonBtn').onclick=exportGame; const pdfBtn=$('#exportGamePdfBtn'); if(pdfBtn) pdfBtn.onclick=exportGamePdf; $('#deleteGameBtn').onclick=deleteGame; $('#closeInfoBtn').onclick=()=>$('#infoDialog').close(); $$('.seg-btn').forEach(btn=>btn.onclick=()=>{state.trendGranularity=btn.dataset.granularity; renderPanel();});
 }
+
+/* inicialização movida para o final da versão consolidada */
+
+/* AveliCoach consolidated updates */
+const U14_META = {saque:{text:'Meta U14: ≥ 62%',target:62,mode:'min'},devolucao:{text:'Meta U14: ≥ 42%',target:42,mode:'min'},pressao:{text:'Meta U14: ≥ 58%',target:58,mode:'min'},agressividade:{text:'Meta U14: ≥ 38%',target:38,mode:'min'},consistencia:{text:'Meta U14: ≥ 74%',target:74,mode:'min'},construcao:{text:'Meta U14: ≥ 24%',target:24,mode:'min'},erros:{text:'Limite U14: ≤ 18%',target:18,mode:'max'},dupla_falta:{text:'Limite U14: ≤ 4%',target:4,mode:'max'},erro_nao_forcado:{text:'Limite U14: ≤ 14%',target:14,mode:'max'}};
+infoTexts.presenca_jogo={title:'Presença no jogo',html:raw`<p>O gráfico calcula a presença a partir dos pontos registrados ao longo do tempo.</p><p>Pontos positivos, como <strong>winner</strong>, <strong>ace</strong>, <strong>passada</strong> e <strong>ponto construído</strong>, aumentam a presença do lado que realizou a ação. Erros, dupla falta e pontos sofridos reduzem a presença.</p><p>A sequência é suavizada por média móvel dos últimos 5 pontos. O eixo X usa o horário salvo em cada ponto.</p>`};
+infoTexts.pressao={title:'Pontos de pressão',html:raw`<p>Na tela de registro, o treinador marca apenas <strong>Normal</strong> ou <strong>Pressão</strong>. O sistema também pode inferir momentos automáticos pelo placar: break point, game point, set point, match point e tie-break.</p><div class="formula">\(\text{Aproveitamento sob pressão} = \frac{\text{Pontos de pressão vencidos}}{\text{Total de pontos de pressão}} \times 100\)</div><p>A marca manual mostra a percepção do treinador. A marca automática mostra o peso objetivo do placar.</p>`};
+function metaForTrend(trendKey,pctValue){const m=U14_META[trendKey];if(!m)return null;const ok=m.mode==='max'?pctValue<=m.target:pctValue>=m.target;return {text:m.text,status:ok?'dentro da meta':(m.mode==='max'?'acima do limite':'abaixo da meta'),ok};}
+function extractPctFromDisplay(v){const m=String(v||'').match(/\((\d+)%\)|^(\d+)%$/);return m?Number(m[1]||m[2]):0;}
+function metricCard(value,label,infoKey,trendKey){const m=trendKey?metaForTrend(trendKey,extractPctFromDisplay(value)):null;return `<article class="metric-card ${trendKey?'clickable':''} ${state.trendMetric===trendKey?'active':''}" ${trendKey?`data-trend="${escapeHtml(trendKey)}"`:''}><button class="info-btn" data-info="${escapeHtml(infoKey)}" type="button">i</button><b>${escapeHtml(value)}</b><span>${escapeHtml(label)}</span>${m?`<small class="metric-meta">${escapeHtml(m.text)}</small><small class="metric-status ${m.ok?'':'warn'}">${escapeHtml(m.status)}</small>`:''}</article>`;}
+function scoreBeforePoint(game,point){return recalcScore((game.points||[]).filter(p=>(p.order||0)<(point.order||0)));}
+function autoMomentForPoint(game,point){const sc=scoreBeforePoint(game,point),server=point.server||'athlete',receiver=server==='athlete'?'opponent':'athlete';if(sc.games.athlete===6&&sc.games.opponent===6)return 'tie_break';const sg=sc.pointIndex[server]>=3&&sc.pointIndex[server]>=sc.pointIndex[receiver]+1,rg=sc.pointIndex[receiver]>=3&&sc.pointIndex[receiver]>=sc.pointIndex[server]+1;if(rg)return 'break_point';if(sg)return 'game_point';const spa=sc.games.athlete>=5&&sc.pointIndex.athlete>=3&&sc.pointIndex.athlete>=sc.pointIndex.opponent+1;const spo=sc.games.opponent>=5&&sc.pointIndex.opponent>=3&&sc.pointIndex.opponent>=sc.pointIndex.athlete+1;if((sc.sets.athlete>=1&&spa)||(sc.sets.opponent>=1&&spo))return 'match_point';if(spa||spo)return 'set_point';return 'normal';}
+function isPressure(p){return ['pressao','break_point','game_point','tie_break','set_point','match_point'].includes(p.moment)||['break_point','game_point','tie_break','set_point','match_point'].includes(p.momentAuto)||p.playType==='pressao';}
+function savePoint(e){e.preventDefault();if(!state.activeGame)newGame();const filled={...state.draft};const savedAt=new Date();const p={id:uid(),order:state.activeGame.points.length+1,createdAt:savedAt.toISOString(),savedAt:savedAt.toISOString(),savedAtLocal:localDateTimeISO(savedAt),savedDate:localDateISO(savedAt),savedTime:localTimeHMS(savedAt),savedTimestampMs:savedAt.getTime(),matchDate:state.activeGame.date||localDateISO(savedAt),server:filled.server||'athlete',winner:val(filled.winner),ending:val(filled.ending),actor:val(filled.actor),stroke:val(filled.stroke),place:val(filled.place),target:val(filled.target),moment:val(filled.moment||'normal'),momentManual:val(filled.moment||'normal'),momentAuto:'normal',playType:val(filled.playType),note:$('#pointNote').value.trim()};p.momentAuto=autoMomentForPoint(state.activeGame,p);state.activeGame.points.push(p);state.activeGame.lastPointSavedAt=p.savedAt;state.activeGame.lastPointSavedAtLocal=p.savedAtLocal;state.activeGame.lastPointSavedTimestampMs=p.savedTimestampMs;state.draft=emptyDraft(p.server||'athlete');$('#pointNote').value='';persistActiveGame();renderChoices();}
+function presenceScoreForPoint(p,side){const other=side==='athlete'?'opponent':'athlete';let v=0;const strong=['winner','passada','saque_direto'];if(p.actor===side&&strong.includes(p.ending))v+=3;else if(p.actor===side&&p.ending==='ponto_construido')v+=2;else if(p.winner===side&&p.actor===other&&['erro','dupla_falta'].includes(p.ending))v+=1;else if(p.winner===side)v+=1;if(p.actor===side&&p.ending==='erro')v-=2;if(p.actor===side&&p.ending==='dupla_falta')v-=3;if(p.actor===other&&strong.includes(p.ending))v-=2;if(p.winner===other&&!v)v-=1;if(isPressure(p))v*=1.25;return Math.max(-5,Math.min(5,v));}
+function movingAvg(values,i,win=5){const start=Math.max(0,i-win+1),part=values.slice(start,i+1);return part.reduce((s,x)=>s+x,0)/part.length;}
+function presenceData(game){const pts=(game.points||[]).filter(p=>p.savedTimestampMs||p.savedTime||p.createdAt);const rawA=pts.map(p=>presenceScoreForPoint(p,'athlete')),rawO=pts.map(p=>presenceScoreForPoint(p,'opponent'));return pts.map((p,i)=>({label:((p.savedTime||(p.savedAtLocal||'').slice(11,19)||(p.createdAt||'').slice(11,19)||String(i+1)).slice(0,5)),athlete:Math.max(-100,Math.min(100,Math.round(movingAvg(rawA,i)*20))),opponent:Math.max(-100,Math.min(100,Math.round(movingAvg(rawO,i)*20)))}));}
+function renderPresenceChart(target,game){const data=presenceData(game);if(!data.length){target.innerHTML='<p class="muted">Sem pontos suficientes para mostrar presença no tempo.</p>';return;}const W=900,H=300,m={l:52,r:18,t:24,b:44},pw=W-m.l-m.r,ph=H-m.t-m.b;const x=i=>m.l+(data.length===1?pw/2:i*pw/(data.length-1));const y=v=>m.t+ph-((v+100)/200)*ph;const path=key=>data.map((d,i)=>(i?'L':'M')+x(i).toFixed(1)+' '+y(d[key]).toFixed(1)).join(' ');const ticks=[-100,-50,0,50,100],step=Math.max(1,Math.ceil(data.length/6));target.innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Presença no jogo">${ticks.map(t=>`<line class="${t===0?'presence-line-zero':'presence-grid'}" x1="${m.l}" x2="${W-m.r}" y1="${y(t)}" y2="${y(t)}"></line><text class="presence-axis-label" x="${m.l-8}" y="${y(t)+4}" text-anchor="end">${t}</text>`).join('')}<path class="presence-player" d="${path('athlete')}"></path><path class="presence-opponent" d="${path('opponent')}"></path>${data.map((d,i)=>`<circle class="presence-dot-player" cx="${x(i)}" cy="${y(d.athlete)}" r="3"></circle><circle class="presence-dot-opponent" cx="${x(i)}" cy="${y(d.opponent)}" r="3"></circle>`).join('')}${data.map((d,i)=>i%step===0||i===data.length-1?`<text class="presence-axis-label" x="${x(i)}" y="${H-16}" text-anchor="middle">${escapeHtml(d.label)}</text>`:'').join('')}<circle class="presence-dot-player" cx="${m.l}" cy="14" r="5"></circle><text class="presence-axis-label" x="${m.l+10}" y="18">Jogador</text><circle class="presence-dot-opponent" cx="${m.l+82}" cy="14" r="5"></circle><text class="presence-axis-label" x="${m.l+92}" y="18">Adversário</text></svg>`;}
+function renderRadar(target,a){const vals=[a.winPct,a.consistency,a.aggression,pct(a.serveWon,a.serveTotal),pct(a.returnWon,a.returnTotal),pct(a.pressureWon,a.pressureCount)];const names=['Pontos','Consist.','Agress.','Saque','Devol.','Pressão'];const W=520,H=340,cx=W/2,cy=170,R=105,n=vals.length;const pt=(i,r)=>{const ang=-Math.PI/2+i*2*Math.PI/n;return[cx+Math.cos(ang)*R*r,cy+Math.sin(ang)*R*r];};const poly=r=>names.map((_,i)=>pt(i,r).join(',')).join(' ');const dataPoly=vals.map((v,i)=>pt(i,Math.max(0,Math.min(100,v))/100).join(',')).join(' ');target.innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Radar técnico">${[.2,.4,.6,.8,1].map(r=>`<polygon points="${poly(r)}" fill="none" stroke="rgba(255,255,255,.14)" stroke-width="1"/>`).join('')}${names.map((_,i)=>{const [x,y]=pt(i,1);return`<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="rgba(255,255,255,.10)"/>`;}).join('')}<polygon points="${dataPoly}" fill="rgba(140,240,179,.24)" stroke="var(--accent2)" stroke-width="4"/>${vals.map((v,i)=>{const[x,y]=pt(i,Math.max(0,Math.min(100,v))/100);return`<circle cx="${x}" cy="${y}" r="5" fill="var(--accent2)"/>`;}).join('')}${names.map((name,i)=>{const[x,y]=pt(i,1.22);return`<text x="${x}" y="${y+4}" fill="var(--muted)" font-size="16" font-weight="800" text-anchor="middle">${name}</text>`;}).join('')}</svg>`;}
+function openGameDetail(id){const g=loadGames().find(x=>x.id===id);if(!g)return;state.selectedGameId=id;state.gameTrendMetric='pontos_vencidos';const a=analyze([g]),sc=recalcScore(g.points||[]);$('#detailTitle').textContent=`${g.date} • vs ${g.opponent||'Adversário'}`;$('#detailSubtitle').textContent=`${g.tournament||'Sem campeonato'} • ${g.startTime||''}${g.endTime?' às '+g.endTime:''}`;$('#bannerSetScore').textContent=`${sc.sets.athlete}–${sc.sets.opponent}`;$('#bannerGameScore').textContent=`${sc.totalGames.athlete}–${sc.totalGames.opponent}`;$('#bannerPointScore').textContent=`${a.won}–${a.lost}`;$('#bannerScoreText').textContent=`Placar registrado: ${sc.sets.athlete}–${sc.sets.opponent} sets • ${sc.totalGames.athlete}–${sc.totalGames.opponent} games • ${a.won}–${a.lost} pontos.`;renderMetricCards($('#gameSimpleCards'),[{value:absPct(a.won,a.knownWinnerPoints.length),label:'pontos vencidos pelo atleta',info:'aproveitamento'},{value:absPct(a.positiveAthlete.length,a.athleteRelated.length),label:'pontos positivos do atleta',info:'agressividade'},{value:absPct(a.athleteErrors.length,a.athleteRelated.length||a.total),label:'pontos entregues por erro',info:'errosAtleta'},{value:absPct(a.pressureWon,a.pressureCount),label:'pontos de pressão',info:'pressao',trend:'pressao'}]);$('#gameSimpleText').textContent=simplePhrase(a);renderMetricCards($('#gameMatchCards'),[{value:absPct(a.total,a.total),label:'pontos registrados no jogo',info:'pontos'},{value:`${a.won}–${a.lost} (${a.winPct}% atleta)`,label:'placar de pontos',info:'aproveitamento'},{value:`${sc.totalGames.athlete}–${sc.totalGames.opponent} (${pct(sc.totalGames.athlete,sc.totalGames.athlete+sc.totalGames.opponent)}% atleta)`,label:'placar de games',info:'jogos'},{value:`${sc.sets.athlete}–${sc.sets.opponent} (${pct(sc.sets.athlete,sc.sets.athlete+sc.sets.opponent)}% atleta)`,label:'placar de sets',info:'jogos'}]);renderComparisonTable($('#gameComparisonTable'),a);renderGameParameterTrend(g);renderBars($('#gameEndingChart'),countBy(a.athleteEndings,'ending'),a.athleteEndings.length);renderBars($('#gameStrokeChart'),countBy(a.athleteErrors,'stroke'),a.athleteErrors.length);renderBars($('#gamePlaceChart'),countBy(a.athleteErrors,'place'),a.athleteErrors.length);renderPresenceChart($('#gamePresenceChart'),g);bindComparisonInfo($('#gamePresenceChart').closest('.detail-group'));renderBars($('#gameOpponentEndingChart'),countBy(a.opponentEndings,'ending'),a.opponentEndings.length);renderBars($('#gameOpponentStrokeChart'),countBy(a.opponentErrors,'stroke'),a.opponentErrors.length);renderBars($('#gameOpponentPlaceChart'),countBy(a.opponentErrors,'place'),a.opponentErrors.length);renderCoachNotes($('#gameCoachNotes'),a,'player');renderCoachNotes($('#gameOpponentNotes'),a,'opponent');showScreen('gameDetail');}
+function pdocText(doc,txt,x,y,size=7,col=[31,41,55],bold=false,opt={}){doc.setTextColor(...col);doc.setFont('helvetica',bold?'bold':'normal');doc.setFontSize(size);doc.text(pdfSafe(txt),x,y,opt)}
+function pdocCard(doc,x,y,w,h){const t=pdfTheme();doc.setDrawColor(...t.line);doc.setFillColor(255,255,255);doc.roundedRect(x,y,w,h,3,3,'FD')}
+function pdocLine(doc,x1,y1,x2,y2,col,w=.4){doc.setDrawColor(...col);doc.setLineWidth(w);doc.line(x1,y1,x2,y2)}
+function onePageHeader(doc,sub,title,period){const t=pdfTheme();pdocText(doc,sub.toUpperCase(),14,14,6.8,t.accent,true);pdocText(doc,title,14,24,15,t.ink,true);pdocText(doc,period,14,31,7.5,t.ink,true);pdocLine(doc,14,37,196,37,t.line,.5)}
+function oneKpi(doc,x,y,w,label,value,sub){const t=pdfTheme();pdocCard(doc,x,y,w,18);pdocText(doc,label,x+3,y+5.5,5.8,t.muted,true);pdocText(doc,value,x+3,y+13.3,9.2,t.ink,true);if(sub)pdocText(doc,sub,x+w-3,y+13.2,5.2,t.muted,false,{align:'right'})}
+function oneBar(doc,x,y,w,h,title,obj,den){const t=pdfTheme();pdocCard(doc,x,y,w,h);pdocText(doc,title.toUpperCase(),x+3,y+6,6.1,t.accent,true);const entries=Object.entries(obj||{}).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]).slice(0,5),max=Math.max(1,...entries.map(([,v])=>v));let yy=y+14;if(!entries.length){pdocText(doc,'Sem dados.',x+3,yy,6.5,t.muted);return}entries.forEach(([k,v])=>{const bw=w-28,total=den||entries.reduce((s,[,vv])=>s+vv,0)||1;pdocText(doc,pdfLabel(k),x+3,yy,5.7,t.ink);doc.setFillColor(238,241,245);doc.roundedRect(x+3,yy+2,bw,2.3,1,1,'F');doc.setFillColor(...t.cyan);doc.roundedRect(x+3,yy+2,Math.max(1,bw*v/max),2.3,1,1,'F');pdocText(doc,`${v} (${pct(v,total)}%)`,x+w-3,yy+3.5,5.5,t.ink,true,{align:'right'});yy+=8})}
+function oneLine(doc,x,y,w,h,title,vals,ref){const t=pdfTheme();pdocCard(doc,x,y,w,h);pdocText(doc,title.toUpperCase(),x+3,y+6,5.8,t.accent,true);const px=x+12,py=y+14,pw=w-19,ph=h-26;[0,25,50,75,100].forEach(v=>{const yy=py+ph-(v/100)*ph;pdocLine(doc,px,yy,px+pw,yy,t.line,.25);pdocText(doc,`${v}%`,px-2,yy+1.5,4.8,t.muted,false,{align:'right'})});if(ref){const yy=py+ph-(ref/100)*ph;doc.setLineDashPattern([2,2],0);pdocLine(doc,px,yy,px+pw,yy,t.yellow,.45);doc.setLineDashPattern([],0);pdocText(doc,`Ref. ${ref}%`,px+pw,yy-1.2,4.8,t.yellow,true,{align:'right'})}const n=vals.length||1,pts=vals.map((d,i)=>({x:px+(n===1?pw/2:i*pw/(n-1)),y:py+ph-(Math.max(0,Math.min(100,d.value))/100)*ph,label:d.label}));doc.setDrawColor(...t.cyan);doc.setLineWidth(.9);for(let i=0;i<pts.length-1;i++)doc.line(pts[i].x,pts[i].y,pts[i+1].x,pts[i+1].y);pts.forEach((p,i)=>{doc.setFillColor(...t.cyan);doc.circle(p.x,p.y,1.3,'F');if(i===0||i===pts.length-1||i%Math.ceil(n/4)===0)pdocText(doc,p.label,p.x,y+h-4,4.7,t.muted,false,{align:'center'})})}
+function onePresence(doc,x,y,w,h,game){const t=pdfTheme();pdocCard(doc,x,y,w,h);pdocText(doc,'PRESENÇA NO JOGO',x+3,y+6,5.8,t.accent,true);const data=presenceData(game),px=x+13,py=y+14,pw=w-20,ph=h-31;[-100,-50,0,50,100].forEach(v=>{const yy=py+ph-((v+100)/200)*ph;pdocLine(doc,px,yy,px+pw,yy,v===0?[160,170,180]:t.line,v===0?.6:.25);pdocText(doc,String(v),px-2,yy+1.5,4.7,t.muted,false,{align:'right'})});const n=data.length||1;const draw=(key,col)=>{const pts=data.map((d,i)=>({x:px+(n===1?pw/2:i*pw/(n-1)),y:py+ph-((d[key]+100)/200)*ph,label:d.label}));doc.setDrawColor(...col);doc.setLineWidth(.9);for(let i=0;i<pts.length-1;i++)doc.line(pts[i].x,pts[i].y,pts[i+1].x,pts[i+1].y);pts.forEach(p=>{doc.setFillColor(...col);doc.circle(p.x,p.y,1,'F')})};draw('athlete',t.cyan);draw('opponent',[49,139,190]);if(data.length){[0,Math.floor((data.length-1)/2),data.length-1].forEach(i=>pdocText(doc,data[i].label,px+(n===1?pw/2:i*pw/(n-1)),y+h-5,4.5,t.muted,false,{align:'center'}))}pdocText(doc,'Acima de zero = maior presença; cruzamentos indicam mudança de domínio.',x+3,y+h-1.5,4.4,t.muted)}
+function oneRadar(doc,x,y,w,h,a,title='RADAR TÉCNICO'){const t=pdfTheme();pdocCard(doc,x,y,w,h);pdocText(doc,title.toUpperCase(),x+3,y+6,5.8,t.accent,true);const vals=[a.winPct,a.consistency,a.aggression,pct(a.serveWon,a.serveTotal),pct(a.returnWon,a.returnTotal),pct(a.pressureWon,a.pressureCount)],names=['Pontos','Cons.','Agr.','Saq.','Dev.','Pres.'],cx=x+w/2,cy=y+h/2+3,R=Math.min(w,h)*.27,n=6;const point=(i,r)=>{const ang=-Math.PI/2+i*2*Math.PI/n;return[cx+Math.cos(ang)*R*r,cy+Math.sin(ang)*R*r]};for(const r of [.25,.5,.75,1]){const pts=names.map((_,i)=>point(i,r));doc.setDrawColor(225,229,235);doc.setLineWidth(.25);for(let i=0;i<pts.length;i++){const a1=pts[i],b=pts[(i+1)%pts.length];doc.line(a1[0],a1[1],b[0],b[1])}}const pts=vals.map((v,i)=>point(i,Math.max(0,Math.min(100,v))/100));doc.setDrawColor(...t.cyan);doc.setLineWidth(1);for(let i=0;i<pts.length;i++){const a1=pts[i],b=pts[(i+1)%pts.length];doc.line(a1[0],a1[1],b[0],b[1])}pts.forEach(pt=>{doc.setFillColor(...t.cyan);doc.circle(pt[0],pt[1],1.4,'F')});names.forEach((nm,i)=>{const[lx,ly]=point(i,1.25);pdocText(doc,nm,lx,ly,4.7,t.muted,true,{align:'center'})})}
+function exportPeriodPdf(){const JS=pdfCheckLib();if(!JS)return;const games=loadGames().filter(inPeriod),a=analyze(games),doc=new JS({orientation:'portrait',unit:'mm',format:'a4'}),t=pdfTheme();onePageHeader(doc,'AveliCoach - Painel do treinador','Métricas do mês',`${$('#periodStart').value||''} a ${$('#periodEnd').value||''}`);const kw=(182-4*3)/5;[['Jogos',String(games.length),'período'],['Pontos',String(a.total),'registrados'],['Vencidos',absPct(a.won,a.knownWinnerPoints.length),'atleta'],['Erros',absPct(a.athleteErrors.length,a.athleteRelated.length||a.total),'atleta'],['Melhor fonte',pdfLabel(Object.entries(countBy(a.positiveAthlete,'ending')).sort((x,y)=>y[1]-x[1])[0]?.[0]||'—'),'']].forEach((k,i)=>oneKpi(doc,14+i*(kw+3),44,kw,k[0],k[1],k[2]));pdocCard(doc,14,68,78,42);pdocText(doc,'LEITURA RESUMIDA',17,75,6.1,t.accent,true);addWrappedText(doc,simplePhrase(a),17,84,72,{lineHeight:3.8});oneBar(doc,96,68,50,42,'Pontos terminaram',countBy(a.points,'ending'),a.total);oneBar(doc,150,68,46,42,'Erros por golpe',countBy(a.athleteErrors,'stroke'),a.athleteErrors.length);const cw=(182-5*3)/6;[['Saque',absPct(a.serveWon,a.serveTotal),'≥62%'],['Devol.',absPct(a.returnWon,a.returnTotal),'≥42%'],['Pressão',absPct(a.pressureWon,a.pressureCount),'≥58%'],['Agress.',`${a.aggression}%`,'≥38%'],['Consist.',`${a.consistency}%`,'≥74%'],['Constr.',absPct(a.constructionCount,a.athleteRelated.length),'≥24%']].forEach((c,i)=>oneKpi(doc,14+i*(cw+3),118,cw,c[0],c[1],c[2]));const trendGames=games.slice(-6);const vals=(trendGames.length?trendGames:games).map(g=>{const aa=analyze([g]);return{label:formatShortDate(g.date),value:pct(aa.serveWon,aa.serveTotal)}});oneLine(doc,14,144,84,61,'Evolução: saque',vals,62);oneRadar(doc,102,144,47,61,a);pdfSmallRows(doc,153,144,43,61,'Notas', [['Saque',`${pct(a.serveWon,a.serveTotal)}%`],['Devol.',`${pct(a.returnWon,a.returnTotal)}%`],['Erro caro',pdfLabel(Object.entries(countBy(a.athleteErrors,'stroke')).sort((x,y)=>y[1]-x[1])[0]?.[0]||'—')],['Lugar',pdfLabel(Object.entries(countBy(a.athleteErrors,'place')).sort((x,y)=>y[1]-x[1])[0]?.[0]||'—')]]);pdocCard(doc,14,212,182,54);pdocText(doc,'DISTRIBUIÇÃO E LEITURA FINAL',17,219,6.1,t.accent,true);addWrappedText(doc,`Síntese: ${simplePhrase(a)} Prioridade: reduzir vazamentos por erro, melhorar devolução e acompanhar presença nos momentos de pressão.`,17,229,176,{lineHeight:4});pdocText(doc,'AVELICOACH',14,288,6,t.accent,true);doc.save(`avelicoach-metricas-mes-${$('#periodStart').value||'inicio'}-${$('#periodEnd').value||'fim'}.pdf`)}
+function exportGamePdf(){const JS=pdfCheckLib();if(!JS)return;const g=loadGames().find(x=>x.id===state.selectedGameId);if(!g)return;const a=analyze([g]),sc=recalcScore(g.points||[]),doc=new JS({orientation:'portrait',unit:'mm',format:'a4'}),t=pdfTheme();onePageHeader(doc,'AveliCoach - Relatório do jogo','Registro e leitura de jogo',`${g.date||''} - vs ${g.opponent||'Adversário'}`);const kw=(182-5*3)/6;[['Pontos',`${a.won}-${a.lost}`,`${a.winPct}%`],['Games',`${sc.totalGames.athlete}-${sc.totalGames.opponent}`,'total'],['Sets',`${sc.sets.athlete}-${sc.sets.opponent}`,'placar'],['Saque',`${pct(a.serveWon,a.serveTotal)}%`,'≥62%'],['Devol.',`${pct(a.returnWon,a.returnTotal)}%`,'≥42%'],['Erros',String(a.athleteErrors.length),'atleta']].forEach((k,i)=>oneKpi(doc,14+i*(kw+3),44,kw,k[0],k[1],k[2]));oneBar(doc,14,68,54,54,'Como terminou',countBy(a.athleteEndings,'ending'),a.athleteEndings.length);oneBar(doc,72,68,54,54,'Erros jogador',countBy(a.athleteErrors,'stroke'),a.athleteErrors.length);onePresence(doc,130,68,66,54,g);const rows=comparisonRows(a).slice(0,6);pdocCard(doc,14,130,182,48);pdocText(doc,'COMPARATIVO TÉCNICO',17,137,6.1,t.accent,true);pdocText(doc,'Métrica',17,146,5.8,t.muted,true);pdocText(doc,'Jogador',82,146,5.8,t.muted,true);pdocText(doc,'Adversário',120,146,5.8,t.muted,true);pdocText(doc,'Ref.',166,146,5.8,t.muted,true);rows.forEach((r,i)=>{const yy=154+i*6;pdocText(doc,r.label,17,yy,5.5,t.muted);pdocText(doc,r.left,85,yy,5.7,t.ink,true,{align:'center'});pdocText(doc,r.mid,126,yy,5.7,t.ink,true,{align:'center'});pdocText(doc,r.ref,176,yy,5.7,t.ink,true,{align:'center'})});const games=getGamesLastYearFor(g),def=comparisonMetricDefs[state.gameTrendMetric]||comparisonMetricDefs.pontos_vencidos,vals=games.map(gg=>{const aa=analyze([gg]);return{label:formatShortDate(gg.date),value:def.player(aa).pct}});oneLine(doc,14,186,74,58,`Evolução - ${def.label}`,vals,def.benchmark);oneRadar(doc,92,186,48,58,a,'Radar do jogo');pdfSmallRows(doc,144,186,52,58,'Notas rápidas', [['Fonte +',pdfLabel(Object.entries(countBy(a.positiveAthlete,'ending')).sort((x,y)=>y[1]-x[1])[0]?.[0]||'—')],['Erro caro',pdfLabel(Object.entries(countBy(a.athleteErrors,'stroke')).sort((x,y)=>y[1]-x[1])[0]?.[0]||'—')],['Pressão',`${pct(a.pressureWon,a.pressureCount)}%`],['Tipo',pdfLabel(Object.entries(countBy(a.points,'playType')).sort((x,y)=>y[1]-x[1])[0]?.[0]||'—')]]);pdocCard(doc,14,252,182,25);pdocText(doc,'LEITURA DO TREINADOR',17,259,6.1,t.accent,true);addWrappedText(doc,`${simplePhrase(a)} O gráfico de presença ajuda a localizar quedas, retomadas e inversões de domínio durante o jogo.`,17,267,176,{lineHeight:3.8});pdocText(doc,'AVELICOACH',14,288,6,t.accent,true);doc.save(`avelicoach-jogo-${g.date||'sem-data'}-${pdfFileSafe(g.opponent||'adversario')}.pdf`)}
+function bind(){$('#newGameBtn').onclick=newGame;$('#homeBtn').onclick=()=>showScreen('home');$$('.choice').forEach(btn=>btn.onclick=()=>handleChoice(btn));$('#pointForm').onsubmit=savePoint;$('#undoPointBtn').onclick=undoPoint;$('#finishGameBtn').onclick=()=>openMetaDialog(true);$('#matchMetaForm').addEventListener('submit',e=>{e.preventDefault();saveMeta();showScreen('home')});$('#saveMetaContinueBtn').onclick=saveMetaAndContinue;$('#cancelMetaBtn').onclick=()=>$('#matchMetaDialog').close();$('#periodStart').onchange=renderPanel;$('#periodEnd').onchange=renderPanel;$('#exportPeriodJsonBtn').onclick=exportPeriod;$('#exportBackupBtn').onclick=exportBackup;$('#exportPdfBtn').onclick=exportPeriodPdf;$('#closeDetailBtn').onclick=()=>showScreen('home');$('#continueGameBtn').onclick=()=>continueGame(state.selectedGameId);$('#exportGameJsonBtn').onclick=exportGame;const pdfBtn=$('#exportGamePdfBtn');if(pdfBtn)pdfBtn.onclick=exportGamePdf;$('#deleteGameBtn').onclick=deleteGame;$('#closeInfoBtn').onclick=()=>$('#infoDialog').close();$$('.seg-btn').forEach(btn=>btn.onclick=()=>{state.trendGranularity=btn.dataset.granularity;renderPanel()})}
+
 
 bind(); monthDefaults(); renderChoices(); renderPanel();

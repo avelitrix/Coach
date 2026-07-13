@@ -19,3 +19,13 @@
 .chart-card h3{margin:.1rem 0 .8rem}
 @media(max-width:760px){.comparison-cell{padding:6px 8px;min-height:42px}.comparison-cell b{font-size:.96rem}.comparison-cell span{font-size:.66rem}.comparison-label{font-size:.7rem;padding:5px 8px}}
 @media(max-width:520px){.comparison-cell{padding:6px;min-height:40px}.comparison-table-head div{font-size:.74rem;padding:7px 4px}}
+
+/* AveliCoach consolidated report/presence updates */
+.choice-row.five{grid-template-columns:repeat(5,1fr)}
+.metric-card .metric-meta{display:block;margin-top:8px;font-size:.72rem;color:var(--accent2);font-weight:850}
+.metric-card .metric-status{display:inline-block;margin-top:5px;padding:3px 8px;border-radius:999px;background:rgba(140,240,179,.12);border:1px solid rgba(140,240,179,.24);font-size:.66rem;color:#dfffea;font-weight:900}
+.metric-card .metric-status.warn{background:rgba(255,209,102,.12);border-color:rgba(255,209,102,.28);color:#ffe6a3}
+.presence-chart-wrap{min-height:280px;display:flex;align-items:center}.presence-chart-wrap svg{width:100%;height:auto;display:block}.presence-legend{margin:.7rem 0 0;color:var(--muted);font-size:.86rem;line-height:1.45}.presence-axis-label{fill:var(--muted);font-size:11px}.presence-line-zero{stroke:rgba(255,255,255,.38);stroke-width:1.5}.presence-grid{stroke:rgba(255,255,255,.09);stroke-width:1}.presence-player{stroke:var(--accent2);fill:none;stroke-width:3}.presence-opponent{stroke:var(--accent);fill:none;stroke-width:3}.presence-dot-player{fill:var(--accent2)}.presence-dot-opponent{fill:var(--accent)}
+@media(max-width:1020px){.choice-row.five{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:760px){.choice-row.five{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:520px){.choice-row.five{grid-template-columns:repeat(2,1fr)}}
