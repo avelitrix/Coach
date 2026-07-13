@@ -14,3 +14,10 @@ Principais alterações:
 - Cards da leitura técnica com meta U14/COSAT e status.
 - Exportações JSON preservadas.
 - PWA AveliCoach preservado com service worker atualizado.
+
+## Correção v6 — Presença relativa
+
+- O gráfico **Presença no jogo** foi ajustado para trabalhar com presença relativa.
+- Agora o sistema calcula um saldo entre jogador e adversário; a linha do adversário é o oposto do saldo do jogador.
+- Isso evita a situação visual em que os dois jogadores aparecem fortemente abaixo de zero ao mesmo tempo.
+- O mesmo ajuste vale para o gráfico desenhado no PDF do jogo.
