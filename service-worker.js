@@ -1,4 +1,4 @@
-const CACHE_NAME = 'avelicoach-pwa-v6-presenca-relativa-pdf-presenca';
+const CACHE_NAME = 'avelicoach-pwa-2-2-1-pdf-presenca';
 const APP_SHELL = [
   './',
   './index.html',

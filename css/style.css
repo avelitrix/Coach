@@ -29,3 +29,11 @@
 @media(max-width:1020px){.choice-row.five{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:760px){.choice-row.five{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:520px){.choice-row.five{grid-template-columns:repeat(2,1fr)}}
+
+/* AveliCoach 2.2.1 */
+.score-banner-main{grid-template-columns:.7fr 1.6fr .7fr}
+#bannerGameScore{font-size:1.15rem;line-height:1.15;white-space:normal;text-align:center}
+.game-evolution-text{font-size:.82rem;color:#a8d5ff;margin:8px 4px 0;line-height:1.45}
+.presence-game-line{stroke:#ffd166;stroke-width:1;stroke-dasharray:4 4;opacity:.35}
+.comparison-label span{line-height:1.2}
+.comparison-value-row b{font-variant-numeric:tabular-nums}
