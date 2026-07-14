@@ -952,3 +952,83 @@ function periodHtmlReport(){
   const body=`<section class="contentgrid" style="grid-template-columns:1fr 360px"><div class="report-card metrics"><h2>COMPARATIVO TÉCNICO DO PERÍODO</h2><table><thead><tr><th>Parâmetro</th><th>Jogador</th><th>Adversário</th><th>Referência</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${escapeHtml(r.label)}</td><td>${escapeHtml(r.left)}</td><td>${escapeHtml(r.mid)}</td><td>${escapeHtml(r.ref)}</td></tr>`).join('')}</tbody></table></div><div class="sidecards" style="grid-template-columns:1fr">${barsHtml222('Como o jogador terminou',countBy(a.athleteEndings,'ending'),a.athleteEndings.length)}${barsHtml222('Erros do jogador por golpe',countBy(a.athleteErrors,'stroke'),a.athleteErrors.length)}${barsHtml222('Erros do jogador por lugar',countBy(a.athleteErrors,'place'),a.athleteErrors.length)}</div></section><section class="report-card" style="margin-top:12px"><h2>NOTAS DO TREINADOR</h2><p>${escapeHtml(simplePhrase(a))}</p></section>`;
   return makeReportHtml222('MÉTRICAS DO MÊS',`Relatório - ${$('#periodStart').value||''} a ${$('#periodEnd').value||''}`,body);
 }
+
+/* =========================================================
+   AveliCoach 2.2.4 - correção de overflow em cards PDF/HTML
+   - cards de distribuição: Top 3 + Outros (máx. 4 linhas)
+   - labels curtos no PDF
+   - espaçamento e barras mais compactos
+   - nomes de arquivos preservados sem “avelicoach”
+   ========================================================= */
+function pdfShortLabel(v){
+  const k=String(v||'nao_informado');
+  const map={
+    nao_informado:'N/I', ponto_construido:'Construído', saque_direto:'Ace/serv.', dupla_falta:'Dupla falta',
+    winner:'Winner', passada:'Passada', erro:'Erro', ace:'Ace',
+    forehand:'Forehand', backhand:'Backhand', saque:'Saque', devolucao:'Devolução', voleio:'Voleio', smash:'Smash',
+    rede:'Rede', fora_lado:'Fora lado', fora_fundo:'Fora fundo', corpo:'Corpo', fundo:'Fundo', cruzada:'Cruzada', paralela:'Paralela'
+  };
+  return pdfSafe(map[k] || labels[k] || k);
+}
+function compactEntries(obj,totalMax=4){
+  const entries=Object.entries(obj||{}).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+  if(entries.length<=totalMax) return entries;
+  const keep=entries.slice(0,totalMax-1);
+  const other=entries.slice(totalMax-1).reduce((s,[,v])=>s+v,0);
+  if(other>0) keep.push(['outros',other]);
+  return keep;
+}
+function pdocCard(doc,x,y,w,h){
+  const t=pdfTheme();
+  doc.setDrawColor(...t.line);
+  doc.setFillColor(247,251,250);
+  doc.roundedRect(x,y,w,h,3,3,'FD');
+}
+function oneBar(doc,x,y,w,h,title,obj,den){
+  const t=pdfTheme();
+  pdocCard(doc,x,y,w,h);
+  pdocText(doc,title.toUpperCase(),x+3,y+6.2,5.35,t.accent,true);
+  const entries=compactEntries(obj,4), max=Math.max(1,...entries.map(([,v])=>v));
+  const total=den||entries.reduce((s,[,vv])=>s+vv,0)||1;
+  let yy=y+15;
+  const rowGap=5.75;
+  const bw=w-24;
+  if(!entries.length){pdocText(doc,'Sem dados.',x+3,yy,5.4,t.muted);return;}
+  entries.forEach(([k,v])=>{
+    if(yy > y+h-4) return;
+    const label=k==='outros'?'Outros':pdfShortLabel(k);
+    pdocText(doc,label,x+3,yy,4.45,t.ink,false);
+    doc.setFillColor(225,237,234); doc.roundedRect(x+3,yy+1.5,bw,1.9,.9,.9,'F');
+    doc.setFillColor(...t.cyan); doc.roundedRect(x+3,yy+1.5,Math.max(.8,bw*v/max),1.9,.9,.9,'F');
+    pdocText(doc,`${v} (${pct(v,total)}%)`,x+w-3,yy+2.7,4.25,t.ink,true,{align:'right'});
+    yy += rowGap;
+  });
+}
+function barsHtml222(title,obj,total){
+  const entries=compactEntries(obj,5);
+  return `<div class="report-card"><h2>${escapeHtml(title)}</h2>${entries.length?entries.map(([k,v])=>`<div class="report-bar"><span>${escapeHtml(k==='outros'?'Outros':pdfShortLabel(k))}</span><div class="report-track"><i style="width:${pct(v,total)}%"></i></div><b>${v} (${pct(v,total)}%)</b></div>`).join(''):'<p class="muted">Sem dados suficientes.</p>'}</div>`;
+}
+function exportGamePdf(){
+  const JS=pdfCheckLib(); if(!JS)return; const g=loadGames().find(x=>x.id===state.selectedGameId); if(!g)return; const a=analyze([g]),tl=scoreTimeline(g),doc=new JS({orientation:'landscape',unit:'mm',format:'a4'}),t=pdfTheme();
+  doc.setFillColor(248,251,250); doc.rect(0,0,297,210,'F');
+  pdocText(doc,'REGISTRO E LEITURA DE JOGO',14,14,7,t.accent,true); pdocText(doc,`Relatório - ${g.date||''} - vs ${g.opponent||'Adversário'}`,14,26,15,t.ink,true); pdocLine(doc,14,33,283,33,t.line,.45);
+  drawScoreBySetPdf(doc,14,40,58,58,tl); onePresence222(doc,78,40,205,58,g);
+  tableMetricsPdf222(doc,14,104,145,91,a);
+  oneBar(doc,164,104,37,40,'Como jogador terminou',countBy(a.athleteEndings,'ending'),a.athleteEndings.length);
+  oneBar(doc,205,104,37,40,'Erros jogador por golpe',countBy(a.athleteErrors,'stroke'),a.athleteErrors.length);
+  oneBar(doc,246,104,37,40,'Erros jogador por lugar',countBy(a.athleteErrors,'place'),a.athleteErrors.length);
+  oneBar(doc,164,149,37,40,'Como adversário terminou',countBy(a.opponentEndings,'ending'),a.opponentEndings.length);
+  oneBar(doc,205,149,37,40,'Erros adversário por golpe',countBy(a.opponentErrors,'stroke'),a.opponentErrors.length);
+  oneBar(doc,246,149,37,40,'Erros adversário por lugar',countBy(a.opponentErrors,'place'),a.opponentErrors.length);
+  doc.save(`registro-leitura-jogo-${g.date||'sem-data'}-${pdfFileSafe(g.opponent||'adversario')}.pdf`);
+}
+function exportPeriodPdf(){
+  const JS=pdfCheckLib();if(!JS)return;const games=loadGames().filter(inPeriod),a=analyze(games),doc=new JS({orientation:'landscape',unit:'mm',format:'a4'});doc.setFillColor(248,251,250);doc.rect(0,0,297,210,'F');onePageHeader(doc,'Métricas do mês','Relatório técnico em uma página',`${$('#periodStart').value||''} a ${$('#periodEnd').value||''}`);const rows=comparisonRows(a);tableMetricsPdf222(doc,14,42,150,92,a);oneBar(doc,170,42,52,44,'Como jogador terminou',countBy(a.athleteEndings,'ending'),a.athleteEndings.length);oneBar(doc,227,42,56,44,'Erros jogador por golpe',countBy(a.athleteErrors,'stroke'),a.athleteErrors.length);oneLine(doc,170,93,52,50,'Evolução: service points',games.slice(-6).map(g=>{const aa=analyze([g]);return{label:formatShortDate(g.date),value:pct(aa.serveWon,aa.serveTotal)}}),62);oneRadar(doc,227,93,56,50,a,'Radar técnico');pdfSmallRows(doc,14,142,269,48,'Notas do treinador', [['Saque',metricObj221(a.serveWon,a.serveTotal).display],['Devolução',metricObj221(a.returnWon,a.returnTotal).display],['Pressão',metricObj221(a.pressureWon,a.pressureCount).display],['Erro caro',pdfLabel(Object.entries(countBy(a.athleteErrors,'stroke')).sort((x,y)=>y[1]-x[1])[0]?.[0]||'—')]]);doc.save(`metricas-${$('#periodStart').value||'inicio'}-${$('#periodEnd').value||'fim'}.pdf`)
+}
+function setup224(){
+  const gp=$('#exportGamePdfBtn'); if(gp) gp.onclick=exportGamePdf;
+  const gh=$('#exportGameHtmlBtn'); if(gh) gh.onclick=exportGameHtml;
+  const pp=$('#exportPdfBtn'); if(pp) pp.onclick=exportPeriodPdf;
+  const ph=$('#exportHtmlBtn'); if(ph) ph.onclick=exportPeriodHtml;
+}
+setup224();
