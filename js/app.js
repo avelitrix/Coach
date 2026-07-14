@@ -1032,3 +1032,119 @@ function setup224(){
   const ph=$('#exportHtmlBtn'); if(ph) ph.onclick=exportPeriodHtml;
 }
 setup224();
+
+/* =========================================================
+   AveliCoach 2.2.5 - refinamento de PDF/HTML exportado
+   - Ref. em texto seguro: min./max. para evitar bug de ≥/≤
+   - cabeçalho da tabela com altura e alinhamento corrigidos
+   - fonte da tabela aumentada com colunas reajustadas
+   - placar por set com labels mais próximos dos placares
+   - mantém nomes de arquivos sem “avelicoach”
+   ========================================================= */
+function pdfRefSafe(v){
+  const s=String(v||'').trim();
+  const pctm=s.match(/(\d+\s*%)/);
+  const val=pctm ? pctm[1].replace(/\s+/g,'') : s.replace(/[≥≤]/g,'').trim();
+  if(s.includes('≤')) return `max. ${val}`;
+  if(s.includes('≥')) return `min. ${val}`;
+  return pdfSafe(s);
+}
+function pdfMetricLabelCompact(label){
+  const map={
+    'Total points won (Pontos vencidos)':'Total points won (Pontos)',
+    'Service points won (Pontos vencidos no saque)':'Service points won (Saque)',
+    'Return points won (Pontos vencidos na devolução)':'Return points won (Devolução)',
+    'Pressure points won (Pontos vencidos sob pressão)':'Pressure points won (Pressão)',
+    'Positive points (Pontos positivos)':'Positive points (Pontos +)',
+    'Errors (Erros)':'Errors (Erros)',
+    'Forced errors (Erros forçados)':'Forced errors (Forçados)',
+    'Unforced errors (Erros não forçados)':'Unforced errors (Não forçados)',
+    'Controlled aggression (Agressividade controlada)':'Controlled aggression (Agress.)',
+    'Rally consistency (Consistência de troca)':'Rally consistency (Consist.)',
+    'Point construction (Construção do ponto)':'Point construction (Construção)',
+    'Double faults (Duplas faltas)':'Double faults (Duplas faltas)',
+    'Aces / service winners (Aces / saques diretos)':'Aces/service winners (Aces)'
+  };
+  return map[label] || label;
+}
+function drawScoreBySetPdf(doc,x,y,w,h,tl){
+  const t=pdfTheme();
+  pdocCard(doc,x,y,w,h);
+  pdocText(doc,'PLACAR POR SET',x+3,y+7,5.8,t.accent,true);
+  const sets=tl.setScores.length?tl.setScores:[{set:1,athlete:0,opponent:0,current:true}];
+  const visible=sets.slice(0,4);
+  const cell=(w-8)/Math.max(1,visible.length);
+  visible.forEach((s,i)=>{
+    const xx=x+4+i*cell;
+    pdocText(doc,`SET ${s.set}`,xx+cell/2,y+20,4.9,t.muted,true,{align:'center'});
+    pdocText(doc,`${s.athlete}-${s.opponent}${s.current?'*':''}`,xx+cell/2,y+30,12.5,t.ink,true,{align:'center'});
+  });
+  pdocText(doc,`Games totais: ${tl.totalGames.athlete}-${tl.totalGames.opponent} · ${tl.scoredPoints.athlete}-${tl.scoredPoints.opponent} pontos`,x+4,y+h-5,4.8,t.muted);
+}
+function tableMetricsPdf222(doc,x,y,w,h,a){
+  const t=pdfTheme();
+  pdocCard(doc,x,y,w,h);
+  pdocText(doc,'COMPARATIVO TÉCNICO',x+3,y+7,5.9,t.accent,true);
+  const rows=comparisonRows(a);
+  const headY=y+10.5, headH=8.6;
+  const labelX=x+4;
+  const playerX=x+w*0.60;
+  const oppX=x+w*0.78;
+  const refX=x+w*0.93;
+  doc.setFillColor(226,240,237);
+  doc.roundedRect(x+2,headY,w-4,headH,1.4,1.4,'F');
+  pdocText(doc,'Parâmetro',labelX,headY+5.7,6.0,t.muted,true);
+  pdocText(doc,'Jogador',playerX,headY+5.7,6.0,t.muted,true,{align:'center'});
+  pdocText(doc,'Adversário',oppX,headY+5.7,6.0,t.muted,true,{align:'center'});
+  pdocText(doc,'Ref.',refX,headY+5.7,6.0,t.muted,true,{align:'center'});
+  const startY=headY+headH+5.2;
+  const rowH=(h-(startY-y)-3)/rows.length;
+  rows.forEach((r,i)=>{
+    const yy=startY+i*rowH;
+    if(i%2===0){doc.setFillColor(252,254,253); doc.rect(x+2,yy-4.0,w-4,rowH,'F');}
+    const label=pdfMetricLabelCompact(r.label);
+    pdocText(doc,label,labelX,yy,5.15,t.ink,false);
+    pdocText(doc,r.left,playerX,yy,5.35,t.ink,true,{align:'center'});
+    pdocText(doc,r.mid,oppX,yy,5.35,t.ink,true,{align:'center'});
+    pdocText(doc,pdfRefSafe(r.ref),refX,yy,5.2,t.ink,true,{align:'center'});
+  });
+}
+function exportGamePdf(){
+  const JS=pdfCheckLib(); if(!JS)return;
+  const g=loadGames().find(x=>x.id===state.selectedGameId); if(!g)return;
+  const a=analyze([g]),tl=scoreTimeline(g),doc=new JS({orientation:'landscape',unit:'mm',format:'a4'}),t=pdfTheme();
+  doc.setFillColor(248,251,250); doc.rect(0,0,297,210,'F');
+  pdocText(doc,'REGISTRO E LEITURA DE JOGO',14,14,7,t.accent,true);
+  pdocText(doc,`Relatório - ${g.date||''} - vs ${g.opponent||'Adversário'}`,14,26,15,t.ink,true);
+  pdocLine(doc,14,33,283,33,t.line,.45);
+  drawScoreBySetPdf(doc,14,40,58,58,tl);
+  onePresence222(doc,78,40,205,58,g);
+  tableMetricsPdf222(doc,14,104,145,91,a);
+  oneBar(doc,164,104,37,40,'Desfechos do jogador',countBy(a.athleteEndings,'ending'),a.athleteEndings.length);
+  oneBar(doc,205,104,37,40,'Erros jogador por golpe',countBy(a.athleteErrors,'stroke'),a.athleteErrors.length);
+  oneBar(doc,246,104,37,40,'Erros jogador por zona',countBy(a.athleteErrors,'place'),a.athleteErrors.length);
+  oneBar(doc,164,149,37,40,'Desfechos do adversário',countBy(a.opponentEndings,'ending'),a.opponentEndings.length);
+  oneBar(doc,205,149,37,40,'Erros adversário por golpe',countBy(a.opponentErrors,'stroke'),a.opponentErrors.length);
+  oneBar(doc,246,149,37,40,'Erros adversário por zona',countBy(a.opponentErrors,'place'),a.opponentErrors.length);
+  doc.save(`registro-leitura-jogo-${g.date||'sem-data'}-${pdfFileSafe(g.opponent||'adversario')}.pdf`);
+}
+function exportPeriodPdf(){
+  const JS=pdfCheckLib();if(!JS)return;
+  const games=loadGames().filter(inPeriod),a=analyze(games),doc=new JS({orientation:'landscape',unit:'mm',format:'a4'});
+  doc.setFillColor(248,251,250);doc.rect(0,0,297,210,'F');
+  onePageHeader(doc,'Métricas do mês','Relatório técnico em uma página',`${$('#periodStart').value||''} a ${$('#periodEnd').value||''}`);
+  tableMetricsPdf222(doc,14,42,150,92,a);
+  oneBar(doc,170,42,52,44,'Desfechos do jogador',countBy(a.athleteEndings,'ending'),a.athleteEndings.length);
+  oneBar(doc,227,42,56,44,'Erros jogador por golpe',countBy(a.athleteErrors,'stroke'),a.athleteErrors.length);
+  oneLine(doc,170,93,52,50,'Evolução: service points',games.slice(-6).map(g=>{const aa=analyze([g]);return{label:formatShortDate(g.date),value:pct(aa.serveWon,aa.serveTotal)}}),62);
+  oneRadar(doc,227,93,56,50,a,'Radar técnico');
+  pdfSmallRows(doc,14,142,269,48,'Notas do treinador', [['Saque',metricObj221(a.serveWon,a.serveTotal).display],['Devolução',metricObj221(a.returnWon,a.returnTotal).display],['Pressão',metricObj221(a.pressureWon,a.pressureCount).display],['Erro caro',pdfLabel(Object.entries(countBy(a.athleteErrors,'stroke')).sort((x,y)=>y[1]-x[1])[0]?.[0]||'—')]]);
+  doc.save(`metricas-${$('#periodStart').value||'inicio'}-${$('#periodEnd').value||'fim'}.pdf`);
+}
+function setup225(){
+  const gp=$('#exportGamePdfBtn'); if(gp) gp.onclick=exportGamePdf;
+  const gh=$('#exportGameHtmlBtn'); if(gh) gh.onclick=exportGameHtml;
+  const pp=$('#exportPdfBtn'); if(pp) pp.onclick=exportPeriodPdf;
+  const ph=$('#exportHtmlBtn'); if(ph) ph.onclick=exportPeriodHtml;
+}
+setup225();
