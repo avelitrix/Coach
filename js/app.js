@@ -778,3 +778,96 @@ function setup221(){
   if(state.selectedGameId){ const g=loadGames().find(x=>x.id===state.selectedGameId); if(g) openGameDetail(g.id); }
 }
 setup221();
+
+/* =========================================================
+   AveliCoach 2.2.2 - ajustes de relatório de jogo
+   - evolução dos games sobreposta ao gráfico de presença
+   - PDF/HTML de jogo no padrão Avelitrix, A4 paisagem
+   - título/subtítulo corrigidos
+   - tabela completa com 13 métricas e análises jogador/adversário
+   ========================================================= */
+function drawWrappedPdoc(doc,text,x,y,maxW,lineH=3.2,size=4.7,col){
+  const t=pdfTheme(); doc.setFont('helvetica','normal'); doc.setFontSize(size); doc.setTextColor(...(col||t.muted));
+  const lines=doc.splitTextToSize(pdfSafe(text),maxW);
+  lines.forEach((ln,i)=>doc.text(ln,x,y+i*lineH));
+  return y+lines.length*lineH;
+}
+function renderPresenceChart(target,game){
+  const data=presenceData(game);if(!data.length){target.innerHTML='<p class="muted">Sem pontos suficientes para mostrar presença no tempo.</p>';return;}
+  const W=900,H=330,m={l:52,r:18,t:24,b:72},pw=W-m.l-m.r,ph=H-m.t-m.b;
+  const x=i=>m.l+(data.length===1?pw/2:i*pw/(data.length-1));
+  const y=v=>m.t+ph-((v+100)/200)*ph;
+  const path=key=>data.map((d,i)=>(i?'L':'M')+x(i).toFixed(1)+' '+y(d[key]).toFixed(1)).join(' ');
+  const ticks=[-100,-50,0,50,100],step=Math.max(1,Math.ceil(data.length/6));
+  const evs=scoreTimeline(game).gameEvents;
+  const vlines=evs.map(ev=>{const xx=x(Math.min(ev.index,data.length-1)).toFixed(1);return `<line class="presence-game-line" x1="${xx}" x2="${xx}" y1="${m.t}" y2="${H-m.b}"></line>`}).join('');
+  const gameText=gameEvolutionText(game).replace(/^Evolução dos games:\s*/,'');
+  const gameLines=wrapSvgText(gameText,86).slice(0,3);
+  const gameOverlay=`<g class="presence-game-overlay"><rect x="${m.l+8}" y="${H-55}" width="${pw-16}" height="37" rx="8"></rect><text x="${m.l+18}" y="${H-38}">Evolução dos games</text>${gameLines.map((ln,i)=>`<text class="presence-game-overlay-line" x="${m.l+18}" y="${H-24+i*12}">${escapeHtml(ln)}</text>`).join('')}</g>`;
+  target.innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Presença no jogo">${ticks.map(t=>`<line class="${t===0?'presence-line-zero':'presence-grid'}" x1="${m.l}" x2="${W-m.r}" y1="${y(t)}" y2="${y(t)}"></line><text class="presence-axis-label" x="${m.l-8}" y="${y(t)+4}" text-anchor="end">${t}</text>`).join('')}${vlines}<path class="presence-player" d="${path('athlete')}"></path><path class="presence-opponent" d="${path('opponent')}"></path>${data.map((d,i)=>`<circle class="presence-dot-player" cx="${x(i)}" cy="${y(d.athlete)}" r="2.5"></circle><circle class="presence-dot-opponent" cx="${x(i)}" cy="${y(d.opponent)}" r="2.5"></circle>`).join('')}${data.map((d,i)=>i%step===0||i===data.length-1?`<text class="presence-axis-label" x="${x(i)}" y="${H-62}" text-anchor="middle">${escapeHtml(d.label)}</text>`:'').join('')}<circle class="presence-dot-player" cx="${m.l}" cy="14" r="5"></circle><text class="presence-axis-label" x="${m.l+10}" y="18">Jogador</text><circle class="presence-dot-opponent" cx="${m.l+82}" cy="14" r="5"></circle><text class="presence-axis-label" x="${m.l+92}" y="18">Adversário</text><line class="presence-game-line" x1="${W-180}" x2="${W-162}" y1="14" y2="14"></line><text class="presence-axis-label" x="${W-156}" y="18">fim de game</text>${gameOverlay}</svg>`;
+}
+function wrapSvgText(text,max){
+  const words=String(text||'').split(/\s+/), out=[]; let row='';
+  words.forEach(w=>{const next=(row+' '+w).trim(); if(next.length>max && row){out.push(row); row=w}else row=next;});
+  if(row) out.push(row); return out;
+}
+function onePresence222(doc,x,y,w,h,game){
+  const t=pdfTheme(); pdocCard(doc,x,y,w,h); pdocText(doc,'PRESENÇA NO JOGO',x+3,y+6,5.8,t.accent,true);
+  const data=presenceData(game),px=x+11,py=y+18,pw=w-20,ph=h-35;
+  pdocText(doc,'● Jogador',x+3,y+13,4.9,[81,224,164],true); pdocText(doc,'● Adversário',x+26,y+13,4.9,[85,184,255],true);
+  [-100,-50,0,50,100].forEach(v=>{const yy=py+ph-((v+100)/200)*ph;pdocLine(doc,px,yy,px+pw,yy,v===0?[150,160,170]:t.line,v===0?.55:.22);pdocText(doc,String(v),px-2,yy+1.3,4.2,t.muted,false,{align:'right'})});
+  const n=data.length||1;
+  scoreTimeline(game).gameEvents.forEach(ev=>{const xx=px+(n===1?pw/2:Math.min(ev.index,data.length-1)*pw/(n-1)); pdocLine(doc,xx,py,xx,py+ph,[255,200,90],.18);});
+  const draw=(key,col)=>{const pts=data.map((d,i)=>({x:px+(n===1?pw/2:i*pw/(n-1)),y:py+ph-((d[key]+100)/200)*ph,label:d.label}));doc.setDrawColor(...col);doc.setLineWidth(.75);for(let i=0;i<pts.length-1;i++)doc.line(pts[i].x,pts[i].y,pts[i+1].x,pts[i+1].y);pts.forEach((p,i)=>{if(i%3===0||i===pts.length-1){doc.setFillColor(...col);doc.circle(p.x,p.y,.55,'F')}})};
+  draw('athlete',[81,224,164]); draw('opponent',[85,184,255]);
+  if(data.length){[0,Math.floor((data.length-1)/2),data.length-1].forEach(i=>pdocText(doc,data[i].label,px+(n===1?pw/2:i*pw/(n-1)),y+h-15,4.2,t.muted,false,{align:'center'}));}
+  const gameText=gameEvolutionText(game).replace(/^Evolução dos games:\s*/,'');
+  pdocText(doc,'Evolução dos games:',x+3,y+h-9,4.4,t.accent,true);
+  drawWrappedPdoc(doc,gameText,x+3,y+h-4,w-6,3,4.2,t.muted);
+}
+function tableMetricsPdf222(doc,x,y,w,h,a){
+  const t=pdfTheme(); pdocCard(doc,x,y,w,h); pdocText(doc,'COMPARATIVO TÉCNICO',x+3,y+7,6.1,t.accent,true);
+  const rows=comparisonRows(a); const startY=y+16, rowH=5.35;
+  pdocText(doc,'Parâmetro',x+3,y+13,4.8,t.muted,true); pdocText(doc,'Jogador',x+w-71,y+13,4.8,t.muted,true,{align:'center'}); pdocText(doc,'Adversário',x+w-39,y+13,4.8,t.muted,true,{align:'center'}); pdocText(doc,'Ref.',x+w-11,y+13,4.8,t.muted,true,{align:'center'});
+  rows.forEach((r,i)=>{const yy=startY+i*rowH; if(i%2===0){doc.setFillColor(247,251,250);doc.rect(x+2,yy-3.6,w-4,rowH,'F');}
+    pdocText(doc,r.label,x+3,yy,4.15,t.muted,false); pdocText(doc,r.left,x+w-71,yy,4.35,t.ink,true,{align:'center'}); pdocText(doc,r.mid,x+w-39,yy,4.35,t.ink,true,{align:'center'}); pdocText(doc,r.ref,x+w-11,yy,4.25,t.ink,true,{align:'center'});
+  });
+}
+function exportGamePdf(){
+  const JS=pdfCheckLib(); if(!JS)return; const g=loadGames().find(x=>x.id===state.selectedGameId); if(!g)return;
+  const a=analyze([g]), tl=scoreTimeline(g), doc=new JS({orientation:'landscape',unit:'mm',format:'a4'}), t=pdfTheme();
+  pdocText(doc,'REGISTRO E LEITURA DE JOGO',14,14,7,t.accent,true);
+  pdocText(doc,`Relatório - ${g.date||''} - vs ${g.opponent||'Adversário'}`,14,26,15,t.ink,true);
+  pdocLine(doc,14,33,283,33,t.line,.5);
+  drawScoreBySetPdf(doc,14,40,58,58,tl);
+  onePresence222(doc,78,40,205,58,g);
+  tableMetricsPdf222(doc,14,104,145,91,a);
+  oneBar(doc,164,104,37,40,'Como jogador terminou',countBy(a.athleteEndings,'ending'),a.athleteEndings.length);
+  oneBar(doc,205,104,37,40,'Erros jogador por golpe',countBy(a.athleteErrors,'stroke'),a.athleteErrors.length);
+  oneBar(doc,246,104,37,40,'Erros jogador por lugar',countBy(a.athleteErrors,'place'),a.athleteErrors.length);
+  oneBar(doc,164,149,37,40,'Como adversário terminou',countBy(a.opponentEndings,'ending'),a.opponentEndings.length);
+  oneBar(doc,205,149,37,40,'Erros adversário por golpe',countBy(a.opponentErrors,'stroke'),a.opponentErrors.length);
+  oneBar(doc,246,149,37,40,'Erros adversário por lugar',countBy(a.opponentErrors,'place'),a.opponentErrors.length);
+  pdocText(doc,'AVELICOACH 2.2.2',14,203,6,t.accent,true); pdocText(doc,'Relatório A4 paisagem · paleta uniforme Avelitrix',283,203,5.5,t.muted,false,{align:'right'});
+  doc.save(`avelicoach-jogo-${g.date||'sem-data'}-${pdfFileSafe(g.opponent||'adversario')}.pdf`);
+}
+function barsHtml222(title,obj,total){const entries=Object.entries(obj||{}).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]).slice(0,5);return `<div class="report-card"><h2>${escapeHtml(title)}</h2>${entries.length?entries.map(([k,v])=>`<div class="report-bar"><span>${escapeHtml(pdfLabel(k))}</span><div class="report-track"><i style="width:${pct(v,total)}%"></i></div><b>${v} (${pct(v,total)}%)</b></div>`).join(''):'<p class="muted">Sem dados suficientes.</p>'}</div>`}
+function presenceSvgReport222(game){
+  const data=presenceData(game), W=860,H=235,m={l:44,r:14,t:30,b:62},pw=W-m.l-m.r,ph=H-m.t-m.b;if(!data.length)return '<p class="muted">Sem pontos suficientes para presença.</p>';
+  const x=i=>m.l+(data.length===1?pw/2:i*pw/(data.length-1)), y=v=>m.t+ph-((v+100)/200)*ph, path=k=>data.map((d,i)=>(i?'L':'M')+x(i).toFixed(1)+' '+y(d[k]).toFixed(1)).join(' ');
+  const gameLines=wrapSvgText(gameEvolutionText(game).replace(/^Evolução dos games:\s*/,''),120).slice(0,2);
+  const vlines=scoreTimeline(game).gameEvents.map(ev=>{const xx=x(Math.min(ev.index,data.length-1)).toFixed(1); return `<line x1="${xx}" x2="${xx}" y1="${m.t}" y2="${m.t+ph}" stroke="#ffc85a" stroke-width="1" stroke-dasharray="4 4" opacity=".45"/>`;}).join('');
+  return `<svg class="presence-report-svg" viewBox="0 0 ${W} ${H}">${[-100,-50,0,50,100].map(t=>`<line x1="${m.l}" x2="${W-m.r}" y1="${y(t)}" y2="${y(t)}" stroke="${t===0?'#91aaa9':'#dbe7e4'}"/><text x="${m.l-7}" y="${y(t)+4}" text-anchor="end" class="axis">${t}</text>`).join('')}${vlines}<path d="${path('athlete')}" class="presence-athlete"/><path d="${path('opponent')}" class="presence-opp"/>${data.map((d,i)=>i%3===0||i===data.length-1?`<circle cx="${x(i)}" cy="${y(d.athlete)}" r="2" class="dot-a"/><circle cx="${x(i)}" cy="${y(d.opponent)}" r="2" class="dot-o"/>`:'').join('')}<circle cx="${m.l}" cy="14" r="5" class="dot-a"/><text x="${m.l+10}" y="18" class="legend">Jogador</text><circle cx="${m.l+76}" cy="14" r="5" class="dot-o"/><text x="${m.l+86}" y="18" class="legend">Adversário</text><rect x="${m.l+8}" y="${H-49}" width="${pw-16}" height="35" rx="8" class="evo-box"/><text x="${m.l+18}" y="${H-34}" class="evo-title">Evolução dos games</text>${gameLines.map((ln,i)=>`<text x="${m.l+18}" y="${H-20+i*11}" class="evo-line">${escapeHtml(ln)}</text>`).join('')}</svg>`;
+}
+function gameHtmlReport(g){
+  const a=analyze([g]), tl=scoreTimeline(g), rows=comparisonRows(a);
+  const body=`<section class="topgrid"><div class="report-card placar">${scoreBySetHtml(tl)}</div><div class="report-card presence-wide"><h2>PRESENÇA NO JOGO</h2>${presenceSvgReport222(g)}</div></section><section class="contentgrid"><div class="report-card metrics"><h2>COMPARATIVO TÉCNICO</h2><table><thead><tr><th>Parâmetro</th><th>Jogador</th><th>Adversário</th><th>Referência</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${escapeHtml(r.label)}</td><td>${escapeHtml(r.left)}</td><td>${escapeHtml(r.mid)}</td><td>${escapeHtml(r.ref)}</td></tr>`).join('')}</tbody></table></div><div class="sidecards">${barsHtml222('Como o jogador terminou',countBy(a.athleteEndings,'ending'),a.athleteEndings.length)}${barsHtml222('Erros do jogador por golpe',countBy(a.athleteErrors,'stroke'),a.athleteErrors.length)}${barsHtml222('Erros do jogador por lugar',countBy(a.athleteErrors,'place'),a.athleteErrors.length)}${barsHtml222('Como o adversário terminou',countBy(a.opponentEndings,'ending'),a.opponentEndings.length)}${barsHtml222('Erros do adversário por golpe',countBy(a.opponentErrors,'stroke'),a.opponentErrors.length)}${barsHtml222('Erros do adversário por lugar',countBy(a.opponentErrors,'place'),a.opponentErrors.length)}</div></section>`;
+  return makeReportHtml222('REGISTRO E LEITURA DE JOGO',`Relatório - ${g.date||''} - vs ${g.opponent||'Adversário'}`,body);
+}
+function scoreBySetHtml(tl){const sets=tl.setScores.length?tl.setScores:[{set:1,athlete:0,opponent:0,current:true}];return `<h2>PLACAR POR SET</h2><div class="setgrid">${sets.slice(0,4).map(s=>`<div><span>SET ${s.set}</span><b>${s.athlete}–${s.opponent}${s.current?'*':''}</b></div>`).join('')}</div><p class="muted">Games totais: ${tl.totalGames.athlete}–${tl.totalGames.opponent} · ${tl.scoredPoints.athlete}–${tl.scoredPoints.opponent} pontos</p>`;}
+function makeReportHtml222(title,subtitle,body){return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title><style>:root{--ink:#142023;--muted:#637879;--green:#51e0a4;--blue:#55b8ff;--yellow:#ffc85a;--line:#31515a;--panel:#f3f8f6;--cyan:#43bfd3}*{box-sizing:border-box}body{margin:0;background:#fff;color:var(--ink);font-family:Inter,Segoe UI,Arial,sans-serif}.page{width:1120px;min-height:790px;margin:0 auto;padding:20px 22px}header{border-bottom:2px solid #a8b7b6;padding-bottom:10px;margin-bottom:10px}.kicker{font-weight:900;color:#078264;font-size:13px;letter-spacing:.04em}h1{font-size:27px;margin:8px 0 0}header p{margin:8px 0 0;font-weight:800}.topgrid{display:grid;grid-template-columns:250px 1fr;gap:12px}.contentgrid{display:grid;grid-template-columns:610px 1fr;gap:12px;margin-top:12px}.sidecards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.report-card{border:1.5px solid #9fb3b1;background:#f7fbfa;border-radius:12px;padding:11px;min-width:0}h2{margin:0 0 10px;font-size:14px;color:#078264}.setgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;text-align:center;margin-top:24px}.setgrid span{display:block;color:#7b8e95;font-size:11px;font-weight:800}.setgrid b{display:block;margin-top:16px;font-size:25px}.muted{color:var(--muted);font-size:11px}.presence-report-svg{width:100%;height:235px}.axis,.legend{fill:#60777a;font:11px Arial}.presence-athlete{fill:none;stroke:#51e0a4;stroke-width:4}.presence-opp{fill:none;stroke:#55b8ff;stroke-width:4}.dot-a{fill:#51e0a4}.dot-o{fill:#55b8ff}.evo-box{fill:#eef5f3;stroke:#d5e1df}.evo-title{fill:#078264;font:bold 11px Arial}.evo-line{fill:#526a6d;font:10px Arial}table{width:100%;border-collapse:collapse;font-size:10.4px}td,th{border-bottom:1px solid #d7e1df;padding:4.8px 4px;text-align:left}td:nth-child(n+2),th:nth-child(n+2){text-align:center}.report-bar{display:grid;grid-template-columns:72px 1fr 42px;gap:5px;align-items:center;font-size:9.5px;margin:5px 0}.report-track{height:7px;background:#dbe7e4;border-radius:99px;overflow:hidden}.report-track i{display:block;height:100%;background:linear-gradient(90deg,#51e0a4,#55b8ff)}.report-card.metrics{grid-row:span 2}.report-card p{line-height:1.35}@media print{body{background:#fff}.page{width:297mm;min-height:210mm;padding:14mm}}</style></head><body><main class="page"><header><div class="kicker">AVELICOACH</div><h1>${escapeHtml(title)}</h1><p>${escapeHtml(subtitle)}</p></header>${body}</main></body></html>`;}
+function setup222(){
+  const gp=$('#exportGamePdfBtn'); if(gp) gp.onclick=exportGamePdf; const gh=$('#exportGameHtmlBtn'); if(gh) gh.onclick=exportGameHtml;
+  if(state.selectedGameId){ const g=loadGames().find(x=>x.id===state.selectedGameId); if(g) openGameDetail(g.id); }
+}
+setup222();
