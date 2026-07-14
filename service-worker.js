@@ -1,4 +1,4 @@
-const CACHE_NAME = 'avelicoach-2-2-2-layout-relatorio';
+const CACHE_NAME = 'avelicoach-2-2-3';
 const APP_SHELL = [
   './',
   './index.html',

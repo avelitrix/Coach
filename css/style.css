@@ -43,3 +43,6 @@
 .presence-game-overlay text{fill:#8df0c4;font-size:10px;font-weight:800}
 .presence-game-overlay .presence-game-overlay-line{fill:#bde9e0;font-size:10px;font-weight:500}
 .game-evolution-text{display:none}
+/* AveliCoach 2.2.3 */
+.game-evolution-strip{margin:10px 8px 2px;border:1px solid rgba(81,224,164,.35);background:rgba(255,255,255,.035);border-radius:12px;padding:10px 12px;color:#b8d6dc}.game-evolution-strip strong{display:block;color:#93f0bd;font-size:.84rem;margin-bottom:6px}.game-evo-row{display:flex;align-items:center;gap:8px;margin:5px 0}.game-evo-row>span{width:44px;color:#a9c4d6;font-weight:900;font-size:.75rem}.game-evo-chips{display:flex;flex-wrap:wrap;gap:5px}.game-evo-chips i{font-style:normal;color:#06131b;font-size:.72rem;font-weight:900;border-radius:999px;padding:2px 7px}.won-athlete{background:var(--warn)}.won-opponent{background:var(--accent)}.game-evolution-strip small{display:block;margin-top:6px;color:var(--muted);font-size:.72rem}.game-evolution-strip small b{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--warn)}.game-evolution-strip small b.opp{background:var(--accent)}
+.presence-player,.presence-opponent{stroke-width:2.35}.presence-dot-player,.presence-dot-opponent{opacity:.92}.presence-chart-wrap{align-items:stretch;flex-direction:column}.game-evolution-text{display:none!important}
