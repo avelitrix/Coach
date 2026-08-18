@@ -1,8 +1,8 @@
 {
   "name": "AveliCoach",
   "short_name": "AveliCoach",
-  "description": "AveliCoach — registro rápido de jogo e métricas para treinador.",
-  "start_url": "./index.html?v=avelicoach",
+  "description": "AveliCoach 2.3 — registro rápido de jogo e métricas para treinador.",
+  "start_url": "./index.html?v=avelicoach-2-3",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",

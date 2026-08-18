@@ -840,17 +840,17 @@ function exportGamePdf(){
   const JS=pdfCheckLib(); if(!JS)return; const g=loadGames().find(x=>x.id===state.selectedGameId); if(!g)return;
   const a=analyze([g]), tl=scoreTimeline(g), doc=new JS({orientation:'landscape',unit:'mm',format:'a4'}), t=pdfTheme();
   pdocText(doc,'REGISTRO E LEITURA DE JOGO',14,14,7,t.accent,true);
-  pdocText(doc,`Relatório - ${g.date||''} - vs ${g.opponent||'Adversário'}`,14,26,15,t.ink,true);
+  pdocText(doc,`Relatório - ${g.date||''} - vs ${g.opponent||'Adversário'}${g.level||g.nivel?' - '+(labels[g.level||g.nivel]||g.level||g.nivel):''}`,14,26,15,t.ink,true);
   pdocLine(doc,14,33,283,33,t.line,.5);
   drawScoreBySetPdf(doc,14,40,58,58,tl);
   onePresence222(doc,78,40,205,58,g);
   tableMetricsPdf222(doc,14,104,145,91,a);
-  oneBar(doc,164,104,37,40,'Como jogador terminou',countBy(a.athleteEndings,'ending'),a.athleteEndings.length);
+  oneBar(doc,164,104,37,40,'Desfechos do jogador',countBy(a.athleteEndings,'ending'),a.athleteEndings.length);
   oneBar(doc,205,104,37,40,'Erros jogador por golpe',countBy(a.athleteErrors,'stroke'),a.athleteErrors.length);
-  oneBar(doc,246,104,37,40,'Erros jogador por lugar',countBy(a.athleteErrors,'place'),a.athleteErrors.length);
-  oneBar(doc,164,149,37,40,'Como adversário terminou',countBy(a.opponentEndings,'ending'),a.opponentEndings.length);
+  oneBar(doc,246,104,37,40,'Erros jogador por zona',countBy(a.athleteErrors,'place'),a.athleteErrors.length);
+  oneBar(doc,164,149,37,40,'Desfechos do adversário',countBy(a.opponentEndings,'ending'),a.opponentEndings.length);
   oneBar(doc,205,149,37,40,'Erros adversário por golpe',countBy(a.opponentErrors,'stroke'),a.opponentErrors.length);
-  oneBar(doc,246,149,37,40,'Erros adversário por lugar',countBy(a.opponentErrors,'place'),a.opponentErrors.length);
+  oneBar(doc,246,149,37,40,'Erros adversário por zona',countBy(a.opponentErrors,'place'),a.opponentErrors.length);
   pdocText(doc,'AVELICOACH 2.2.2',14,203,6,t.accent,true); pdocText(doc,'Relatório A4 paisagem · paleta uniforme Avelitrix',283,203,5.5,t.muted,false,{align:'right'});
   doc.save(`avelicoach-jogo-${g.date||'sem-data'}-${pdfFileSafe(g.opponent||'adversario')}.pdf`);
 }
@@ -864,8 +864,8 @@ function presenceSvgReport222(game){
 }
 function gameHtmlReport(g){
   const a=analyze([g]), tl=scoreTimeline(g), rows=comparisonRows(a);
-  const body=`<section class="topgrid"><div class="report-card placar">${scoreBySetHtml(tl)}</div><div class="report-card presence-wide"><h2>PRESENÇA NO JOGO</h2>${presenceSvgReport222(g)}</div></section><section class="contentgrid"><div class="report-card metrics"><h2>COMPARATIVO TÉCNICO</h2><table><thead><tr><th>Parâmetro</th><th>Jogador</th><th>Adversário</th><th>Referência</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${escapeHtml(r.label)}</td><td>${escapeHtml(r.left)}</td><td>${escapeHtml(r.mid)}</td><td>${escapeHtml(r.ref)}</td></tr>`).join('')}</tbody></table></div><div class="sidecards">${barsHtml222('Como o jogador terminou',countBy(a.athleteEndings,'ending'),a.athleteEndings.length)}${barsHtml222('Erros do jogador por golpe',countBy(a.athleteErrors,'stroke'),a.athleteErrors.length)}${barsHtml222('Erros do jogador por lugar',countBy(a.athleteErrors,'place'),a.athleteErrors.length)}${barsHtml222('Como o adversário terminou',countBy(a.opponentEndings,'ending'),a.opponentEndings.length)}${barsHtml222('Erros do adversário por golpe',countBy(a.opponentErrors,'stroke'),a.opponentErrors.length)}${barsHtml222('Erros do adversário por lugar',countBy(a.opponentErrors,'place'),a.opponentErrors.length)}</div></section>`;
-  return makeReportHtml222('REGISTRO E LEITURA DE JOGO',`Relatório - ${g.date||''} - vs ${g.opponent||'Adversário'}`,body);
+  const body=`<section class="topgrid"><div class="report-card placar">${scoreBySetHtml(tl)}</div><div class="report-card presence-wide"><h2>PRESENÇA NO JOGO</h2>${presenceSvgReport222(g)}</div></section><section class="contentgrid"><div class="report-card metrics"><h2>COMPARATIVO TÉCNICO</h2><table><thead><tr><th>Parâmetro</th><th>Jogador</th><th>Adversário</th><th>Referência</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${escapeHtml(r.label)}</td><td>${escapeHtml(r.left)}</td><td>${escapeHtml(r.mid)}</td><td>${escapeHtml(r.ref)}</td></tr>`).join('')}</tbody></table></div><div class="sidecards">${barsHtml222('Desfechos do jogador',countBy(a.athleteEndings,'ending'),a.athleteEndings.length)}${barsHtml222('Erros do jogador por golpe',countBy(a.athleteErrors,'stroke'),a.athleteErrors.length)}${barsHtml222('Erros do jogador por zona',countBy(a.athleteErrors,'place'),a.athleteErrors.length)}${barsHtml222('Desfechos do adversário',countBy(a.opponentEndings,'ending'),a.opponentEndings.length)}${barsHtml222('Erros do adversário por golpe',countBy(a.opponentErrors,'stroke'),a.opponentErrors.length)}${barsHtml222('Erros do adversário por zona',countBy(a.opponentErrors,'place'),a.opponentErrors.length)}</div></section>`;
+  return makeReportHtml222('REGISTRO E LEITURA DE JOGO',`Relatório - ${g.date||''} - vs ${g.opponent||'Adversário'}${g.level||g.nivel?' - '+(labels[g.level||g.nivel]||g.level||g.nivel):''}`,body);
 }
 function scoreBySetHtml(tl){const sets=tl.setScores.length?tl.setScores:[{set:1,athlete:0,opponent:0,current:true}];return `<h2>PLACAR POR SET</h2><div class="setgrid">${sets.slice(0,4).map(s=>`<div><span>SET ${s.set}</span><b>${s.athlete}–${s.opponent}${s.current?'*':''}</b></div>`).join('')}</div><p class="muted">Games totais: ${tl.totalGames.athlete}–${tl.totalGames.opponent} · ${tl.scoredPoints.athlete}–${tl.scoredPoints.opponent} pontos</p>`;}
 function makeReportHtml222(title,subtitle,body){return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title><style>:root{--ink:#142023;--muted:#637879;--green:#51e0a4;--blue:#55b8ff;--yellow:#ffc85a;--line:#31515a;--panel:#f3f8f6;--cyan:#43bfd3}*{box-sizing:border-box}body{margin:0;background:#fff;color:var(--ink);font-family:Inter,Segoe UI,Arial,sans-serif}.page{width:1120px;min-height:790px;margin:0 auto;padding:20px 22px}header{border-bottom:2px solid #a8b7b6;padding-bottom:10px;margin-bottom:10px}.kicker{font-weight:900;color:#078264;font-size:13px;letter-spacing:.04em}h1{font-size:27px;margin:8px 0 0}header p{margin:8px 0 0;font-weight:800}.topgrid{display:grid;grid-template-columns:250px 1fr;gap:12px}.contentgrid{display:grid;grid-template-columns:610px 1fr;gap:12px;margin-top:12px}.sidecards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.report-card{border:1.5px solid #9fb3b1;background:#f7fbfa;border-radius:12px;padding:11px;min-width:0}h2{margin:0 0 10px;font-size:14px;color:#078264}.setgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;text-align:center;margin-top:24px}.setgrid span{display:block;color:#7b8e95;font-size:11px;font-weight:800}.setgrid b{display:block;margin-top:16px;font-size:25px}.muted{color:var(--muted);font-size:11px}.presence-report-svg{width:100%;height:235px}.axis,.legend{fill:#60777a;font:11px Arial}.presence-athlete{fill:none;stroke:#51e0a4;stroke-width:4}.presence-opp{fill:none;stroke:#55b8ff;stroke-width:4}.dot-a{fill:#51e0a4}.dot-o{fill:#55b8ff}.evo-box{fill:#eef5f3;stroke:#d5e1df}.evo-title{fill:#078264;font:bold 11px Arial}.evo-line{fill:#526a6d;font:10px Arial}table{width:100%;border-collapse:collapse;font-size:10.4px}td,th{border-bottom:1px solid #d7e1df;padding:4.8px 4px;text-align:left}td:nth-child(n+2),th:nth-child(n+2){text-align:center}.report-bar{display:grid;grid-template-columns:72px 1fr 42px;gap:5px;align-items:center;font-size:9.5px;margin:5px 0}.report-track{height:7px;background:#dbe7e4;border-radius:99px;overflow:hidden}.report-track i{display:block;height:100%;background:linear-gradient(90deg,#51e0a4,#55b8ff)}.report-card.metrics{grid-row:span 2}.report-card p{line-height:1.35}@media print{body{background:#fff}.page{width:297mm;min-height:210mm;padding:14mm}}</style></head><body><main class="page"><header><div class="kicker">AVELICOACH</div><h1>${escapeHtml(title)}</h1><p>${escapeHtml(subtitle)}</p></header>${body}</main></body></html>`;}
@@ -927,18 +927,18 @@ function tableMetricsPdf222(doc,x,y,w,h,a){
 function exportGamePdf(){
   const JS=pdfCheckLib(); if(!JS)return; const g=loadGames().find(x=>x.id===state.selectedGameId); if(!g)return; const a=analyze([g]),tl=scoreTimeline(g),doc=new JS({orientation:'landscape',unit:'mm',format:'a4'}),t=pdfTheme();
   doc.setFillColor(248,251,250); doc.rect(0,0,297,210,'F');
-  pdocText(doc,'REGISTRO E LEITURA DE JOGO',14,14,7,t.accent,true); pdocText(doc,`Relatório - ${g.date||''} - vs ${g.opponent||'Adversário'}`,14,26,15,t.ink,true); pdocLine(doc,14,33,283,33,t.line,.45);
+  pdocText(doc,'REGISTRO E LEITURA DE JOGO',14,14,7,t.accent,true); pdocText(doc,`Relatório - ${g.date||''} - vs ${g.opponent||'Adversário'}${g.level||g.nivel?' - '+(labels[g.level||g.nivel]||g.level||g.nivel):''}`,14,26,15,t.ink,true); pdocLine(doc,14,33,283,33,t.line,.45);
   drawScoreBySetPdf(doc,14,40,58,58,tl); onePresence222(doc,78,40,205,58,g);
   tableMetricsPdf222(doc,14,104,145,91,a);
-  oneBar(doc,164,104,37,40,'Como jogador terminou',countBy(a.athleteEndings,'ending'),a.athleteEndings.length);
+  oneBar(doc,164,104,37,40,'Desfechos do jogador',countBy(a.athleteEndings,'ending'),a.athleteEndings.length);
   oneBar(doc,205,104,37,40,'Erros jogador por golpe',countBy(a.athleteErrors,'stroke'),a.athleteErrors.length);
-  oneBar(doc,246,104,37,40,'Erros jogador por lugar',countBy(a.athleteErrors,'place'),a.athleteErrors.length);
-  oneBar(doc,164,149,37,40,'Como adversário terminou',countBy(a.opponentEndings,'ending'),a.opponentEndings.length);
+  oneBar(doc,246,104,37,40,'Erros jogador por zona',countBy(a.athleteErrors,'place'),a.athleteErrors.length);
+  oneBar(doc,164,149,37,40,'Desfechos do adversário',countBy(a.opponentEndings,'ending'),a.opponentEndings.length);
   oneBar(doc,205,149,37,40,'Erros adversário por golpe',countBy(a.opponentErrors,'stroke'),a.opponentErrors.length);
-  oneBar(doc,246,149,37,40,'Erros adversário por lugar',countBy(a.opponentErrors,'place'),a.opponentErrors.length);
+  oneBar(doc,246,149,37,40,'Erros adversário por zona',countBy(a.opponentErrors,'place'),a.opponentErrors.length);
   doc.save(`registro-leitura-jogo-${g.date||'sem-data'}-${pdfFileSafe(g.opponent||'adversario')}.pdf`);
 }
-function exportPeriodPdf(){const JS=pdfCheckLib();if(!JS)return;const games=loadGames().filter(inPeriod),a=analyze(games),doc=new JS({orientation:'landscape',unit:'mm',format:'a4'});doc.setFillColor(248,251,250);doc.rect(0,0,297,210,'F');onePageHeader(doc,'Métricas do mês','Relatório técnico em uma página',`${$('#periodStart').value||''} a ${$('#periodEnd').value||''}`);const t=pdfTheme();const rows=comparisonRows(a);tableMetricsPdf222(doc,14,42,150,92,a);oneBar(doc,170,42,52,44,'Como jogador terminou',countBy(a.athleteEndings,'ending'),a.athleteEndings.length);oneBar(doc,227,42,56,44,'Erros jogador por golpe',countBy(a.athleteErrors,'stroke'),a.athleteErrors.length);oneLine(doc,170,93,52,50,'Evolução: service points',games.slice(-6).map(g=>{const aa=analyze([g]);return{label:formatShortDate(g.date),value:pct(aa.serveWon,aa.serveTotal)}}),62);oneRadar(doc,227,93,56,50,a,'Radar técnico');pdfSmallRows(doc,14,142,269,48,'Notas do treinador', [['Saque',metricObj221(a.serveWon,a.serveTotal).display],['Devolução',metricObj221(a.returnWon,a.returnTotal).display],['Pressão',metricObj221(a.pressureWon,a.pressureCount).display],['Erro caro',pdfLabel(Object.entries(countBy(a.athleteErrors,'stroke')).sort((x,y)=>y[1]-x[1])[0]?.[0]||'—')]]);doc.save(`metricas-${$('#periodStart').value||'inicio'}-${$('#periodEnd').value||'fim'}.pdf`)}
+function exportPeriodPdf(){const JS=pdfCheckLib();if(!JS)return;const games=loadGames().filter(inPeriod),a=analyze(games),doc=new JS({orientation:'landscape',unit:'mm',format:'a4'});doc.setFillColor(248,251,250);doc.rect(0,0,297,210,'F');onePageHeader(doc,'Métricas do mês','Relatório técnico em uma página',`${$('#periodStart').value||''} a ${$('#periodEnd').value||''}`);const t=pdfTheme();const rows=comparisonRows(a);tableMetricsPdf222(doc,14,42,150,92,a);oneBar(doc,170,42,52,44,'Desfechos do jogador',countBy(a.athleteEndings,'ending'),a.athleteEndings.length);oneBar(doc,227,42,56,44,'Erros jogador por golpe',countBy(a.athleteErrors,'stroke'),a.athleteErrors.length);oneLine(doc,170,93,52,50,'Evolução: service points',games.slice(-6).map(g=>{const aa=analyze([g]);return{label:formatShortDate(g.date),value:pct(aa.serveWon,aa.serveTotal)}}),62);oneRadar(doc,227,93,56,50,a,'Radar técnico');pdfSmallRows(doc,14,142,269,48,'Notas do treinador', [['Saque',metricObj221(a.serveWon,a.serveTotal).display],['Devolução',metricObj221(a.returnWon,a.returnTotal).display],['Pressão',metricObj221(a.pressureWon,a.pressureCount).display],['Erro caro',pdfLabel(Object.entries(countBy(a.athleteErrors,'stroke')).sort((x,y)=>y[1]-x[1])[0]?.[0]||'—')]]);doc.save(`metricas-${$('#periodStart').value||'inicio'}-${$('#periodEnd').value||'fim'}.pdf`)}
 function presenceSvgReport222(game){
   const data=presenceData(game), W=860,H=235,m={l:44,r:14,t:30,b:52},pw=W-m.l-m.r,ph=H-m.t-m.b;if(!data.length)return '<p class="muted">Sem pontos suficientes para presença.</p>';
   const x=i=>m.l+(data.length===1?pw/2:i*pw/(data.length-1)), y=v=>m.t+ph-((v+100)/200)*ph, path=k=>data.map((d,i)=>(i?'L':'M')+x(i).toFixed(1)+' '+y(d[k]).toFixed(1)).join(' ');
@@ -952,7 +952,7 @@ function setup223(){const gp=$('#exportGamePdfBtn'); if(gp) gp.onclick=exportGam
 setup223();
 function periodHtmlReport(){
   const games=loadGames().filter(inPeriod),a=analyze(games),rows=comparisonRows(a);
-  const body=`<section class="contentgrid" style="grid-template-columns:1fr 360px"><div class="report-card metrics"><h2>COMPARATIVO TÉCNICO DO PERÍODO</h2><table><thead><tr><th>Parâmetro</th><th>Jogador</th><th>Adversário</th><th>Referência</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${escapeHtml(r.label)}</td><td>${escapeHtml(r.left)}</td><td>${escapeHtml(r.mid)}</td><td>${escapeHtml(r.ref)}</td></tr>`).join('')}</tbody></table></div><div class="sidecards" style="grid-template-columns:1fr">${barsHtml222('Como o jogador terminou',countBy(a.athleteEndings,'ending'),a.athleteEndings.length)}${barsHtml222('Erros do jogador por golpe',countBy(a.athleteErrors,'stroke'),a.athleteErrors.length)}${barsHtml222('Erros do jogador por lugar',countBy(a.athleteErrors,'place'),a.athleteErrors.length)}</div></section><section class="report-card" style="margin-top:12px"><h2>NOTAS DO TREINADOR</h2><p>${escapeHtml(simplePhrase(a))}</p></section>`;
+  const body=`<section class="contentgrid" style="grid-template-columns:1fr 360px"><div class="report-card metrics"><h2>COMPARATIVO TÉCNICO DO PERÍODO</h2><table><thead><tr><th>Parâmetro</th><th>Jogador</th><th>Adversário</th><th>Referência</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${escapeHtml(r.label)}</td><td>${escapeHtml(r.left)}</td><td>${escapeHtml(r.mid)}</td><td>${escapeHtml(r.ref)}</td></tr>`).join('')}</tbody></table></div><div class="sidecards" style="grid-template-columns:1fr">${barsHtml222('Desfechos do jogador',countBy(a.athleteEndings,'ending'),a.athleteEndings.length)}${barsHtml222('Erros do jogador por golpe',countBy(a.athleteErrors,'stroke'),a.athleteErrors.length)}${barsHtml222('Erros do jogador por zona',countBy(a.athleteErrors,'place'),a.athleteErrors.length)}</div></section><section class="report-card" style="margin-top:12px"><h2>NOTAS DO TREINADOR</h2><p>${escapeHtml(simplePhrase(a))}</p></section>`;
   return makeReportHtml222('MÉTRICAS DO MÊS',`Relatório - ${$('#periodStart').value||''} a ${$('#periodEnd').value||''}`,body);
 }
 
@@ -1014,19 +1014,19 @@ function barsHtml222(title,obj,total){
 function exportGamePdf(){
   const JS=pdfCheckLib(); if(!JS)return; const g=loadGames().find(x=>x.id===state.selectedGameId); if(!g)return; const a=analyze([g]),tl=scoreTimeline(g),doc=new JS({orientation:'landscape',unit:'mm',format:'a4'}),t=pdfTheme();
   doc.setFillColor(248,251,250); doc.rect(0,0,297,210,'F');
-  pdocText(doc,'REGISTRO E LEITURA DE JOGO',14,14,7,t.accent,true); pdocText(doc,`Relatório - ${g.date||''} - vs ${g.opponent||'Adversário'}`,14,26,15,t.ink,true); pdocLine(doc,14,33,283,33,t.line,.45);
+  pdocText(doc,'REGISTRO E LEITURA DE JOGO',14,14,7,t.accent,true); pdocText(doc,`Relatório - ${g.date||''} - vs ${g.opponent||'Adversário'}${g.level||g.nivel?' - '+(labels[g.level||g.nivel]||g.level||g.nivel):''}`,14,26,15,t.ink,true); pdocLine(doc,14,33,283,33,t.line,.45);
   drawScoreBySetPdf(doc,14,40,58,58,tl); onePresence222(doc,78,40,205,58,g);
   tableMetricsPdf222(doc,14,104,145,91,a);
-  oneBar(doc,164,104,37,40,'Como jogador terminou',countBy(a.athleteEndings,'ending'),a.athleteEndings.length);
+  oneBar(doc,164,104,37,40,'Desfechos do jogador',countBy(a.athleteEndings,'ending'),a.athleteEndings.length);
   oneBar(doc,205,104,37,40,'Erros jogador por golpe',countBy(a.athleteErrors,'stroke'),a.athleteErrors.length);
-  oneBar(doc,246,104,37,40,'Erros jogador por lugar',countBy(a.athleteErrors,'place'),a.athleteErrors.length);
-  oneBar(doc,164,149,37,40,'Como adversário terminou',countBy(a.opponentEndings,'ending'),a.opponentEndings.length);
+  oneBar(doc,246,104,37,40,'Erros jogador por zona',countBy(a.athleteErrors,'place'),a.athleteErrors.length);
+  oneBar(doc,164,149,37,40,'Desfechos do adversário',countBy(a.opponentEndings,'ending'),a.opponentEndings.length);
   oneBar(doc,205,149,37,40,'Erros adversário por golpe',countBy(a.opponentErrors,'stroke'),a.opponentErrors.length);
-  oneBar(doc,246,149,37,40,'Erros adversário por lugar',countBy(a.opponentErrors,'place'),a.opponentErrors.length);
+  oneBar(doc,246,149,37,40,'Erros adversário por zona',countBy(a.opponentErrors,'place'),a.opponentErrors.length);
   doc.save(`registro-leitura-jogo-${g.date||'sem-data'}-${pdfFileSafe(g.opponent||'adversario')}.pdf`);
 }
 function exportPeriodPdf(){
-  const JS=pdfCheckLib();if(!JS)return;const games=loadGames().filter(inPeriod),a=analyze(games),doc=new JS({orientation:'landscape',unit:'mm',format:'a4'});doc.setFillColor(248,251,250);doc.rect(0,0,297,210,'F');onePageHeader(doc,'Métricas do mês','Relatório técnico em uma página',`${$('#periodStart').value||''} a ${$('#periodEnd').value||''}`);const rows=comparisonRows(a);tableMetricsPdf222(doc,14,42,150,92,a);oneBar(doc,170,42,52,44,'Como jogador terminou',countBy(a.athleteEndings,'ending'),a.athleteEndings.length);oneBar(doc,227,42,56,44,'Erros jogador por golpe',countBy(a.athleteErrors,'stroke'),a.athleteErrors.length);oneLine(doc,170,93,52,50,'Evolução: service points',games.slice(-6).map(g=>{const aa=analyze([g]);return{label:formatShortDate(g.date),value:pct(aa.serveWon,aa.serveTotal)}}),62);oneRadar(doc,227,93,56,50,a,'Radar técnico');pdfSmallRows(doc,14,142,269,48,'Notas do treinador', [['Saque',metricObj221(a.serveWon,a.serveTotal).display],['Devolução',metricObj221(a.returnWon,a.returnTotal).display],['Pressão',metricObj221(a.pressureWon,a.pressureCount).display],['Erro caro',pdfLabel(Object.entries(countBy(a.athleteErrors,'stroke')).sort((x,y)=>y[1]-x[1])[0]?.[0]||'—')]]);doc.save(`metricas-${$('#periodStart').value||'inicio'}-${$('#periodEnd').value||'fim'}.pdf`)
+  const JS=pdfCheckLib();if(!JS)return;const games=loadGames().filter(inPeriod),a=analyze(games),doc=new JS({orientation:'landscape',unit:'mm',format:'a4'});doc.setFillColor(248,251,250);doc.rect(0,0,297,210,'F');onePageHeader(doc,'Métricas do mês','Relatório técnico em uma página',`${$('#periodStart').value||''} a ${$('#periodEnd').value||''}`);const rows=comparisonRows(a);tableMetricsPdf222(doc,14,42,150,92,a);oneBar(doc,170,42,52,44,'Desfechos do jogador',countBy(a.athleteEndings,'ending'),a.athleteEndings.length);oneBar(doc,227,42,56,44,'Erros jogador por golpe',countBy(a.athleteErrors,'stroke'),a.athleteErrors.length);oneLine(doc,170,93,52,50,'Evolução: service points',games.slice(-6).map(g=>{const aa=analyze([g]);return{label:formatShortDate(g.date),value:pct(aa.serveWon,aa.serveTotal)}}),62);oneRadar(doc,227,93,56,50,a,'Radar técnico');pdfSmallRows(doc,14,142,269,48,'Notas do treinador', [['Saque',metricObj221(a.serveWon,a.serveTotal).display],['Devolução',metricObj221(a.returnWon,a.returnTotal).display],['Pressão',metricObj221(a.pressureWon,a.pressureCount).display],['Erro caro',pdfLabel(Object.entries(countBy(a.athleteErrors,'stroke')).sort((x,y)=>y[1]-x[1])[0]?.[0]||'—')]]);doc.save(`metricas-${$('#periodStart').value||'inicio'}-${$('#periodEnd').value||'fim'}.pdf`)
 }
 function setup224(){
   const gp=$('#exportGamePdfBtn'); if(gp) gp.onclick=exportGamePdf;
@@ -1118,7 +1118,7 @@ function exportGamePdf(){
   const a=analyze([g]),tl=scoreTimeline(g),doc=new JS({orientation:'landscape',unit:'mm',format:'a4'}),t=pdfTheme();
   doc.setFillColor(248,251,250); doc.rect(0,0,297,210,'F');
   pdocText(doc,'REGISTRO E LEITURA DE JOGO',14,14,7,t.accent,true);
-  pdocText(doc,`Relatório - ${g.date||''} - vs ${g.opponent||'Adversário'}`,14,26,15,t.ink,true);
+  pdocText(doc,`Relatório - ${g.date||''} - vs ${g.opponent||'Adversário'}${g.level||g.nivel?' - '+(labels[g.level||g.nivel]||g.level||g.nivel):''}`,14,26,15,t.ink,true);
   pdocLine(doc,14,33,283,33,t.line,.45);
   drawScoreBySetPdf(doc,14,40,58,58,tl);
   onePresence222(doc,78,40,205,58,g);
@@ -1151,3 +1151,253 @@ function setup225(){
   const ph=$('#exportHtmlBtn'); if(ph) ph.onclick=exportPeriodHtml;
 }
 setup225();
+
+/* =========================================================
+   AveliCoach 2.3 - tela de registro compacta e novas entradas
+   ========================================================= */
+Object.assign(labels, {
+  forehand:'FH', backhand:'BH', slice:'Slice', t:'T',
+  primeiro:'1º saque', segundo:'2º saque',
+  aberta:'Angulado',
+  '5_8':'5-8', '9_plus':'9+',
+  atras_linha:'Atrás da linha', na_linha:'Na linha', dentro_quadra:'Dentro da quadra',
+  treino:'Treino', g1:'G1', g2:'G2', g3:'G3', classe:'Classe', barragem:'Barragem'
+});
+infoTexts.terminou_em = {title:'Terminou em', html: raw`<table class="info-table"><tr><th>Opção</th><th>Significado</th><th>Exemplos</th></tr><tr><td><strong>Erro</strong></td><td>O ponto terminou porque o jogador que executou a ação final errou a bola.</td><td>FH na rede; BH para fora; devolução errada; voleio perdido.</td></tr><tr><td><strong>Winner</strong></td><td>Bola vencedora direta. A última bola encerrou o ponto sem devolução em jogo.</td><td>FH paralelo indefensável; BH cruzado; voleio colocado; smash definitivo.</td></tr><tr><td><strong>Passada</strong></td><td>Bola que passou o jogador que estava na rede.</td><td>FH cruzado passando o voleador; BH paralelo contra subida à rede.</td></tr><tr><td><strong>Ace</strong></td><td>Ponto terminado diretamente pelo saque.</td><td>Saque aberto sem toque; saque no corpo que impede devolução; saque no T.</td></tr><tr><td><strong>Dupla falta</strong></td><td>O sacador errou o primeiro e o segundo saque.</td><td>Segundo saque na rede ou para fora.</td></tr><tr><td><strong>Ponto construído</strong></td><td>Ponto vencido por sequência bem montada antes da última bola.</td><td>Saque aberto + ataque; cruzada para abrir a quadra; profundidade até gerar bola curta.</td></tr></table>`};
+infoTexts.tipo_jogada = {title:'Tipo da jogada', html: raw`<table class="info-table"><tr><th>Opção</th><th>Quando usar</th></tr><tr><td><strong>Saque +1</strong></td><td>Quando o ponto foi decidido logo após o saque, na primeira bola depois do saque.</td></tr><tr><td><strong>Devolução</strong></td><td>Quando o ponto foi decidido na devolução ou pela qualidade da devolução.</td></tr><tr><td><strong>Troca</strong></td><td>Quando o ponto foi decidido em rally normal, com os dois jogadores já dentro da troca.</td></tr><tr><td><strong>Defesa</strong></td><td>Quando o jogador estava sob pressão física ou tática: correndo, atrasado, esticado, desequilibrado, encurralado ou tentando neutralizar. Ajuda a separar erro forçado de erro não forçado.</td></tr><tr><td><strong>Rede</strong></td><td>Quando o ponto foi decidido em situação de rede: voleio, smash, aproximação, fechamento na frente ou passada contra jogador que subiu à rede.</td></tr></table>`};
+infoTexts.comp_break_points = {title:'Break points', html: raw`<p>Conta os pontos em que o devolvedor poderia vencer o game. A métrica aparece como <strong>convertidos/oportunidades</strong>.</p><div class="formula">Break point = devolvedor vence o game se ganhar o próximo ponto.</div><p>Exemplos: 30-40 ou 40-AD contra quem está sacando.</p>`};
+comparisonMetricDefs.break_points = { label:'Break points', info:'comp_break_points', benchmark:0, ref:'-', refSub:'Convertidos/oportunidades', player:a=>metricObj(a.breakPoints?.athlete?.conv||0, a.breakPoints?.athlete?.opp||0), opp:a=>metricObj(a.breakPoints?.opponent?.conv||0, a.breakPoints?.opponent?.opp||0) };
+
+
+function emptyDraft(server='athlete'){
+  return {server, winner:null, ending:null, actor:null, stroke:null, place:null, target:null, moment:null, playType:null, serveAttempt:null, serveDirection:null, rallyLength:null, servePlusPosition:null, momentUserSet:false, playTypeUserSet:false};
+}
+function opposite(side){ return side === 'athlete' ? 'opponent' : 'athlete'; }
+function pointActor(p){ return (p && ['athlete','opponent'].includes(p.actor)) ? p.actor : inferActorFromPoint(p||{}); }
+function inferActorFromPoint(d){
+  const winner=d.winner;
+  const ending=d.ending;
+  if(!['athlete','opponent'].includes(winner)) return d.actor || 'nao_informado';
+  if(ending==='erro' || ending==='dupla_falta') return opposite(winner);
+  if(['winner','passada','saque_direto','ponto_construido'].includes(ending)) return winner;
+  return d.actor || 'nao_informado';
+}
+function inferStrokeFromPoint(d){
+  if(['saque_direto','dupla_falta'].includes(d.ending)) return 'saque';
+  return d.stroke || 'nao_informado';
+}
+function inferPlayTypeFromDraft(d){
+  if(d.playTypeUserSet && d.playType) return d.playType;
+  if(d.ending==='passada') return 'rede';
+  if(['saque_direto','dupla_falta'].includes(d.ending)) return d.playType || 'saque_mais_um';
+  if(d.stroke==='voleio' || d.stroke==='smash') return 'rede';
+  if(d.stroke==='devolucao') return 'devolucao';
+  if(['forehand','backhand','slice'].includes(d.stroke)) return d.playType || 'troca';
+  return d.playType || null;
+}
+function targetOptionsForEnding(ending){
+  if(ending==='saque_direto') return [['aberta','Aberto'],['corpo','Corpo'],['t','T']];
+  if(ending==='passada') return [['paralela','Paralela'],['cruzada','Cruzada'],['lob','Lob'],['corpo','Corpo'],['aberta','Angulado'],['curta','Curta']];
+  if(ending==='ponto_construido') return [['paralela','Paralela'],['cruzada','Cruzada'],['fundo','Fundo'],['rede','Rede'],['curta','Curta'],['corpo','Corpo'],['aberta','Angulado']];
+  return [['paralela','Paralela'],['cruzada','Cruzada'],['fundo','Fundo'],['rede','Rede'],['lob','Lob'],['curta','Curta'],['corpo','Corpo'],['aberta','Angulado']];
+}
+function renderTargetChoices(){
+  const row=$('#targetChoiceRow'); if(!row) return;
+  const opts=targetOptionsForEnding(state.draft.ending);
+  row.className='choice-row dynamic-eight';
+  row.innerHTML=opts.map(([value,label])=>`<button class="choice" data-field="target" data-value="${value}" type="button">${label}</button>`).join('');
+  $$('.choice',row).forEach(btn=>btn.onclick=()=>handleChoice(btn));
+}
+function setButtonSelections(){
+  $$('.choice').forEach(btn=>btn.classList.toggle('selected', state.draft[btn.dataset.field]===btn.dataset.value));
+}
+function renderChoices(){
+  if(!state.draft) state.draft=emptyDraft('athlete');
+  const candidate={...state.draft, order:(state.activeGame?.points?.length||0)+1};
+  const auto=autoMomentForPoint(state.activeGame||{points:[]}, candidate);
+  if(!state.draft.momentUserSet) state.draft.moment = (auto && auto !== 'normal') ? 'pressao' : 'normal';
+  if(!state.draft.playTypeUserSet) state.draft.playType = inferPlayTypeFromDraft(state.draft);
+  if(state.draft.ending==='saque_direto') state.draft.rallyLength = state.draft.rallyLength || '1';
+  if(state.draft.stroke==='devolucao') state.draft.rallyLength = state.draft.rallyLength || '2';
+  if(state.draft.playType==='saque_mais_um') state.draft.rallyLength = state.draft.rallyLength || '3';
+  renderTargetChoices();
+  const isError=state.draft.ending==='erro'||state.draft.ending==='dupla_falta'||!state.draft.ending;
+  $$('.error-only').forEach(el=>el.classList.toggle('hidden',!isError));
+  $$('.not-error-only').forEach(el=>el.classList.toggle('hidden',isError));
+  setButtonSelections();
+  renderScore();
+  bindInfoButtons(document);
+}
+function handleChoice(btn){
+  const field=btn.dataset.field, value=btn.dataset.value;
+  state.draft[field]=value;
+  if(field==='moment') state.draft.momentUserSet=true;
+  if(field==='playType') state.draft.playTypeUserSet=true;
+  if(field==='ending'){
+    state.draft.place=null; state.draft.target=null;
+    if(value==='saque_direto' || value==='dupla_falta') state.draft.stroke='saque';
+  }
+  if(field==='stroke' && ['voleio','smash','devolucao','forehand','backhand','slice'].includes(value)){
+    if(!state.draft.playTypeUserSet) state.draft.playType=inferPlayTypeFromDraft(state.draft);
+  }
+  renderChoices();
+}
+function renderScore(){
+  const g=state.activeGame; const score=recalcScore(g?.points||[]); const pl=tennisPointLabel(score); const server=state.draft?.server || 'athlete';
+  const el=$('#compactScore'); if(!el) return;
+  el.innerHTML=`<table class="score-pro"><thead><tr><th></th><th>S</th><th>G</th><th>P</th></tr></thead><tbody><tr class="${server==='athlete'?'is-server':''}"><th><span class="server-dot">${server==='athlete'?'●':''}</span>AT</th><td>${score.sets.athlete}</td><td>${score.games.athlete}</td><td>${pl.athlete}</td></tr><tr class="${server==='opponent'?'is-server':''}"><th><span class="server-dot">${server==='opponent'?'●':''}</span>AD</th><td>${score.sets.opponent}</td><td>${score.games.opponent}</td><td>${pl.opponent}</td></tr></tbody></table>`;
+}
+function showScreen(name){
+  $$('.screen').forEach(s => s.classList.remove('active'));
+  $('#' + name + 'Screen').classList.add('active');
+  $('#homeBtn').classList.toggle('hidden', name === 'home');
+  document.body.classList.toggle('recording', name === 'register');
+  if(name === 'home') renderPanel();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+function openMetaDialog(forceEnd){
+  const g=state.activeGame; if(!g) return;
+  $('#matchDate').value=g.date||todayISO(); $('#matchStart').value=g.startTime||nowHM(); $('#matchEnd').value=forceEnd?nowHM():(g.endTime||'');
+  $('#matchOpponent').value=g.opponent==='Adversário'?'':(g.opponent||''); $('#matchTournament').value=g.tournament||''; if($('#matchLevel')) $('#matchLevel').value=g.level||g.nivel||''; $('#matchGeneralNote').value=g.generalNote||'';
+  $('#matchMetaDialog').showModal();
+}
+function saveMeta(){
+  const g=state.activeGame; if(!g) return;
+  g.date=$('#matchDate').value||todayISO(); g.startTime=$('#matchStart').value||g.startTime||nowHM(); g.endTime=$('#matchEnd').value||g.endTime||'';
+  g.opponent=$('#matchOpponent').value.trim()||'Adversário'; g.tournament=$('#matchTournament').value.trim(); g.level=$('#matchLevel')?.value||''; g.nivel=g.level; g.generalNote=$('#matchGeneralNote').value.trim();
+  if(g.endTime) g.closed=true; persistActiveGame(); $('#matchMetaDialog').close();
+}
+function scoreBeforePoint(game,point){ return recalcScore((game?.points||[]).filter(p=>(p.order||0)<(point.order||0))); }
+function canWinGameNext(score, side){
+  const other=opposite(side), s=score.pointIndex[side]||0, o=score.pointIndex[other]||0;
+  return s>=3 && s>=o+1;
+}
+function autoMomentForPoint(game,point){
+  const sc=scoreBeforePoint(game,point), server=point.server||'athlete', receiver=opposite(server);
+  const a=sc.pointIndex.athlete||0, o=sc.pointIndex.opponent||0;
+  const totalInGame=a+o;
+  if(sc.games.athlete===6 && sc.games.opponent===6 && (a>=4 || o>=4 || totalInGame>=8)) return 'tie_break';
+  const bp=canWinGameNext(sc,receiver), gpServer=canWinGameNext(sc,server), gpAth=canWinGameNext(sc,'athlete'), gpOpp=canWinGameNext(sc,'opponent');
+  const wouldSetAth=gpAth && ((sc.games.athlete+1>=6 && sc.games.athlete+1-sc.games.opponent>=2) || sc.games.athlete+1===7);
+  const wouldSetOpp=gpOpp && ((sc.games.opponent+1>=6 && sc.games.opponent+1-sc.games.athlete>=2) || sc.games.opponent+1===7);
+  if((sc.sets.athlete>=1 && wouldSetAth) || (sc.sets.opponent>=1 && wouldSetOpp)) return 'match_point';
+  if(wouldSetAth || wouldSetOpp) return 'set_point';
+  if(bp) return 'break_point';
+  if(gpServer || gpAth || gpOpp) return 'game_point';
+  if(a===2 && o===2) return 'pressao'; // 30-30
+  if(a>=3 && o>=3) return 'pressao'; // deuce/vantagem
+  const criticalSet = ['4-5','5-4','5-5','5-6','6-5'].includes(`${sc.games.athlete}-${sc.games.opponent}`);
+  const weightedPoint = (a===2&&o===2) || (a>=3&&o>=2) || (o>=3&&a>=2);
+  if(criticalSet && weightedPoint) return 'pressao';
+  return 'normal';
+}
+function isPressure(p){return ['pressao','break_point','game_point','tie_break','set_point','match_point'].includes(p.moment)||['pressao','break_point','game_point','tie_break','set_point','match_point'].includes(p.momentAuto)||p.playType==='pressao';}
+function savePoint(e){
+  e?.preventDefault?.();
+  if(!state.activeGame) newGame();
+  const filled={...state.draft};
+  const savedAt=new Date(); const oldPoints=[...(state.activeGame.points||[])];
+  const base={server:filled.server||'athlete',winner:val(filled.winner),ending:val(filled.ending)};
+  base.actor=inferActorFromPoint({...base,actor:filled.actor});
+  base.stroke=inferStrokeFromPoint({...base,stroke:filled.stroke});
+  base.playType=val(inferPlayTypeFromDraft({...filled, ending:base.ending, stroke:base.stroke}));
+  const p={id:uid(),order:oldPoints.length+1,createdAt:savedAt.toISOString(),savedAt:savedAt.toISOString(),savedAtLocal:localDateTimeISO(savedAt),savedDate:localDateISO(savedAt),savedTime:localTimeHMS(savedAt),savedTimestampMs:savedAt.getTime(),matchDate:state.activeGame.date||localDateISO(savedAt),server:base.server,winner:base.winner,ending:base.ending,actor:val(base.actor),stroke:val(base.stroke),place:val(filled.place),target:val(filled.target),moment:val(filled.moment||'normal'),momentManual:val(filled.moment||'normal'),momentAuto:'normal',playType:base.playType,serveAttempt:val(filled.serveAttempt),serveDirection:val(filled.serveDirection),rallyLength:val(filled.rallyLength),servePlusPosition:val(filled.servePlusPosition),note:$('#pointNote').value.trim()};
+  p.momentAuto=autoMomentForPoint(state.activeGame,p);
+  state.activeGame.points.push(p);
+  state.activeGame.lastPointSavedAt=p.savedAt; state.activeGame.lastPointSavedAtLocal=p.savedAtLocal; state.activeGame.lastPointSavedTimestampMs=p.savedTimestampMs;
+  const before=recalcScore(oldPoints), after=recalcScore(state.activeGame.points); const beforeGames=before.totalGames.athlete+before.totalGames.opponent, afterGames=after.totalGames.athlete+after.totalGames.opponent;
+  const nextServer = afterGames>beforeGames ? opposite(p.server) : p.server;
+  state.draft=emptyDraft(nextServer);
+  $('#pointNote').value=''; persistActiveGame(); renderChoices();
+  requestAnimationFrame(()=>($('#compactScore')||document.body).scrollIntoView({behavior:'smooth',block:'start'}));
+}
+function computeBreakPoints(points){
+  const out={athlete:{opp:0,conv:0,saved:0,against:0},opponent:{opp:0,conv:0,saved:0,against:0}};
+  const sim=[];
+  (points||[]).forEach((p,i)=>{
+    const pp={...p, order:p.order||i+1}; const sc=recalcScore(sim); const server=pp.server||'athlete', receiver=opposite(server);
+    if(canWinGameNext(sc,receiver)){
+      out[receiver].opp += 1; out[server].against += 1;
+      if(pp.winner===receiver) out[receiver].conv += 1;
+      if(pp.winner===server) out[server].saved += 1;
+    }
+    sim.push(pp);
+  });
+  return out;
+}
+function computeBreakPointsFromGames(games){
+  const sum={athlete:{opp:0,conv:0,saved:0,against:0},opponent:{opp:0,conv:0,saved:0,against:0}};
+  (games||[]).forEach(g=>{ const bp=computeBreakPoints(g.points||[]); ['athlete','opponent'].forEach(side=>['opp','conv','saved','against'].forEach(k=>sum[side][k]+=bp[side][k]||0)); });
+  return sum;
+}
+function analyze(games){
+  const rawPoints=games.flatMap(g=>(g.points||[]).map((p,i)=>({...p, order:p.order||i+1, gameId:g.id, gameDate:g.date})));
+  const points=rawPoints.map(p=>({...p, actor:pointActor(p), stroke:inferStrokeFromPoint(p)}));
+  const total=points.length;
+  const knownWinnerPoints=points.filter(p=>['athlete','opponent'].includes(p.winner));
+  const won=knownWinnerPoints.filter(p=>p.winner==='athlete').length;
+  const lost=knownWinnerPoints.filter(p=>p.winner==='opponent').length;
+  const athleteRelated=points.filter(p=>p.winner==='athlete'||p.actor==='athlete'||p.server==='athlete');
+  const opponentRelated=points.filter(p=>p.winner==='opponent'||p.actor==='opponent'||p.server==='opponent');
+  const athleteErrors=points.filter(p=>(p.ending==='erro'||p.ending==='dupla_falta')&&p.actor==='athlete');
+  const opponentErrors=points.filter(p=>(p.ending==='erro'||p.ending==='dupla_falta')&&p.actor==='opponent');
+  const positiveAthlete=points.filter(p=>p.actor==='athlete'&&['winner','passada','saque_direto','ponto_construido'].includes(p.ending));
+  const positiveOpponent=points.filter(p=>p.actor==='opponent'&&['winner','passada','saque_direto','ponto_construido'].includes(p.ending));
+  const athleteEndings=points.filter(p=>p.actor==='athlete'||p.winner==='athlete');
+  const opponentEndings=points.filter(p=>p.actor==='opponent'||p.winner==='opponent');
+  const serve=points.filter(p=>p.server==='athlete'&&['athlete','opponent'].includes(p.winner));
+  const ret=points.filter(p=>p.server==='opponent'&&['athlete','opponent'].includes(p.winner));
+  const pressure=points.filter(p=>isPressure(p)&&['athlete','opponent'].includes(p.winner));
+  const pressureWon=pressure.filter(p=>p.winner==='athlete').length;
+  const construction=points.filter(p=>p.actor==='athlete'&&(p.ending==='ponto_construido'||p.playType==='troca'));
+  const constructionOpp=points.filter(p=>p.actor==='opponent'&&(p.ending==='ponto_construido'||p.playType==='troca'));
+  const athleteDoubleFaults=points.filter(p=>p.ending==='dupla_falta'&&p.actor==='athlete');
+  const opponentDoubleFaults=points.filter(p=>p.ending==='dupla_falta'&&p.actor==='opponent');
+  const athleteAces=points.filter(p=>p.ending==='saque_direto'&&p.actor==='athlete');
+  const opponentAces=points.filter(p=>p.ending==='saque_direto'&&p.actor==='opponent');
+  const athleteForcedErrors=athleteErrors.filter(p=>['defesa','corrida'].includes(p.playType)||p.stroke==='corrida');
+  const athleteUnforcedErrors=athleteErrors.filter(p=>!(['defesa','corrida'].includes(p.playType)||p.stroke==='corrida'));
+  const opponentForcedErrors=opponentErrors.filter(p=>['defesa','corrida'].includes(p.playType)||p.stroke==='corrida');
+  const opponentUnforcedErrors=opponentErrors.filter(p=>!(['defesa','corrida'].includes(p.playType)||p.stroke==='corrida'));
+  const consistency=athleteRelated.length ? Math.max(0, Math.round(100 - athleteErrors.length/athleteRelated.length*100)) : 0;
+  const aggression=athleteRelated.length ? Math.max(0, Math.min(100, Math.round((positiveAthlete.length*1.4 - athleteErrors.length*.8 + won*.2) / athleteRelated.length * 100))) : 0;
+  const consistencyOpp=opponentRelated.length ? Math.max(0, Math.round(100 - opponentErrors.length/opponentRelated.length*100)) : 0;
+  const aggressionOpp=opponentRelated.length ? Math.max(0, Math.min(100, Math.round((positiveOpponent.length*1.4 - opponentErrors.length*.8 + lost*.2) / opponentRelated.length * 100))) : 0;
+  const bp=computeBreakPointsFromGames(games);
+  return { games, points, total, knownWinnerPoints, won, lost, winPct:pct(won, knownWinnerPoints.length), athleteRelated, opponentRelated, athleteErrors, opponentErrors, positiveAthlete, positiveOpponent, athleteEndings, opponentEndings,
+    serveWon:serve.filter(p=>p.winner==='athlete').length, serveLost:serve.filter(p=>p.winner==='opponent').length, serveTotal:serve.length,
+    returnWon:ret.filter(p=>p.winner==='athlete').length, returnLost:ret.filter(p=>p.winner==='opponent').length, returnTotal:ret.length,
+    pressureWon, pressureLost:pressure.length-pressureWon, pressureCount:pressure.length,
+    constructionCount:construction.length, constructionOppCount:constructionOpp.length, consistency, consistencyOpp, aggression, aggressionOpp,
+    athleteDoubleFaults, opponentDoubleFaults, athleteAces, opponentAces, athleteForcedErrors, athleteUnforcedErrors, opponentForcedErrors, opponentUnforcedErrors,
+    breakPoints:bp };
+}
+function comparisonRows(a){
+  const baseKeys=['pontos_vencidos','saque','devolucao','pressao','pontos_positivos','pontos_erro','erros_forcados','erros_nao_forcados','agressividade','consistencia','construcao','dupla_falta','aces'];
+  const rows=baseKeys.map(key=>{const def=comparisonMetricDefs[key]; const left=def.player(a), mid=def.opp(a); return {key,label:def.label,info:def.info,ref:def.ref,refSub:def.refSub,leftSub:'',midSub:'',left:left.display,mid:mid.display};});
+  const bpRow={key:'break_points',label:'Break points',info:'comp_break_points',ref:'-',refSub:'Convertidos/oportunidades',left:`${a.breakPoints?.athlete?.conv||0}/${a.breakPoints?.athlete?.opp||0}`,mid:`${a.breakPoints?.opponent?.conv||0}/${a.breakPoints?.opponent?.opp||0}`,leftSub:'Convertidos',midSub:'Convertidos'};
+  const idx=rows.findIndex(r=>r.key==='pressao'); rows.splice(idx+1,0,bpRow);
+  return rows;
+}
+function openGameDetail(id){
+  const g=loadGames().find(x=>x.id===id); if(!g) return;
+  state.selectedGameId=id; state.gameTrendMetric='pontos_vencidos';
+  const a=analyze([g]); const sc=recalcScore(g.points||[]); const lvl=labels[g.level||g.nivel]||'Nível não informado';
+  $('#detailTitle').textContent=`${g.date} • vs ${g.opponent || 'Adversário'}`; $('#detailSubtitle').textContent=`${g.tournament || 'Sem campeonato'} • ${lvl} • ${g.startTime || ''}${g.endTime ? ' às ' + g.endTime : ''}`;
+  $('#bannerSetScore').textContent=`${sc.sets.athlete}–${sc.sets.opponent}`; $('#bannerGameScore').textContent=`${sc.totalGames.athlete}–${sc.totalGames.opponent}`; $('#bannerPointScore').textContent=`${a.won}–${a.lost}`; $('#bannerScoreText').textContent=`Placar registrado: ${sc.sets.athlete}–${sc.sets.opponent} sets • ${sc.totalGames.athlete}–${sc.totalGames.opponent} games • ${a.won}–${a.lost} pontos.`;
+  renderMetricCards($('#gameSimpleCards'), [{value:absPct(a.won,a.knownWinnerPoints.length),label:'pontos vencidos pelo atleta',info:'aproveitamento'},{value:absPct(a.positiveAthlete.length,a.athleteRelated.length),label:'pontos positivos do atleta',info:'agressividade'},{value:absPct(a.athleteErrors.length,a.athleteRelated.length||a.total),label:'pontos entregues por erro',info:'errosAtleta'},{value:absPct(a.pressureWon,a.pressureCount),label:'pontos de pressão',info:'pressao'}]);
+  $('#gameSimpleText').textContent=simplePhrase(a);
+  renderMetricCards($('#gameMatchCards'), [{value:absPct(a.total,a.total),label:'pontos registrados no jogo',info:'pontos'},{value:`${a.won}–${a.lost} (${a.winPct}% atleta)`,label:'placar de pontos',info:'aproveitamento'},{value:`${a.breakPoints?.athlete?.conv||0}/${a.breakPoints?.athlete?.opp||0}`,label:'break points do atleta',info:'comp_break_points'},{value:`${a.breakPoints?.opponent?.conv||0}/${a.breakPoints?.opponent?.opp||0}`,label:'break points do adversário',info:'comp_break_points'},{value:`${sc.totalGames.athlete}–${sc.totalGames.opponent} (${pct(sc.totalGames.athlete,sc.totalGames.athlete+sc.totalGames.opponent)}% atleta)`,label:'placar de games',info:'jogos'},{value:`${sc.sets.athlete}–${sc.sets.opponent} (${pct(sc.sets.athlete,sc.sets.athlete+sc.sets.opponent)}% atleta)`,label:'placar de sets',info:'jogos'}]);
+  renderComparisonTable($('#gameComparisonTable'),a); renderGameParameterTrend(g);
+  renderBars($('#gameEndingChart'),countBy(a.athleteEndings,'ending'),a.athleteEndings.length); renderBars($('#gameStrokeChart'),countBy(a.athleteErrors,'stroke'),a.athleteErrors.length); renderBars($('#gamePlaceChart'),countBy(a.athleteErrors,'place'),a.athleteErrors.length); renderPresenceChart($('#gamePresenceChart'),g); bindComparisonInfo($('#gamePresenceChart').closest('.detail-group'));
+  renderBars($('#gameOpponentEndingChart'),countBy(a.opponentEndings,'ending'),a.opponentEndings.length); renderBars($('#gameOpponentStrokeChart'),countBy(a.opponentErrors,'stroke'),a.opponentErrors.length); renderBars($('#gameOpponentPlaceChart'),countBy(a.opponentErrors,'place'),a.opponentErrors.length); renderCoachNotes($('#gameCoachNotes'),a,'player'); renderCoachNotes($('#gameOpponentNotes'),a,'opponent'); showScreen('gameDetail');
+}
+function bind23(){
+  $$('.choice').forEach(btn=>btn.onclick=()=>handleChoice(btn));
+  $('#pointForm').onsubmit=e=>e.preventDefault();
+  $('#savePointBtn').onclick=savePoint;
+  $('#pointNote')?.addEventListener('keydown',e=>{ if(e.key==='Enter') e.stopPropagation(); });
+  $$('.inline-info').forEach(btn=>btn.onclick=()=>showInfo(btn.dataset.info));
+}
+bind23();
+renderChoices();

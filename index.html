@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>AveliCoach</title>
-  <meta name="description" content="AveliCoach — registro rápido de jogo e métricas para treinador." />
+  <meta name="description" content="AveliCoach 2.3 — registro rápido de jogo e métricas para treinador." />
   <meta name="theme-color" content="#07131f" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -104,94 +104,81 @@
       </section>
 
       <section id="registerScreen" class="screen register-screen">
-        <div class="compact-score" id="compactScore">
-          <div class="score-line-main"><span id="compactPointScore">Pontos: 0–0</span><span id="compactGameScore">Games: 0–0</span><span id="compactSetScore">Set: 0–0</span></div>
-          <div class="score-line-sub"><span id="compactServer">Saca: atleta</span><span id="compactOpponent">Adversário</span></div>
-        </div>
+        <div class="compact-score pro-score" id="compactScore" aria-label="Placar compacto"></div>
 
         <form id="pointForm" class="point-form">
-          <div class="quick-line compact-server-line">
-            <span class="line-title">Saca</span>
-            <div class="choice-row two">
-              <button class="choice selected" data-field="server" data-value="athlete" type="button">Atleta</button>
-              <button class="choice" data-field="server" data-value="opponent" type="button">Adversário</button>
+          <div class="quick-line quick-split-line compact-server-winner-line">
+            <div class="quick-subgroup">
+              <span class="line-title">Saca</span>
+              <div class="choice-row two">
+                <button class="choice selected" data-field="server" data-value="athlete" type="button">AT</button>
+                <button class="choice" data-field="server" data-value="opponent" type="button">AD</button>
+              </div>
+            </div>
+            <div class="quick-subgroup">
+              <span class="line-title">Ponto</span>
+              <div class="choice-row two">
+                <button class="choice" data-field="winner" data-value="athlete" type="button">AT</button>
+                <button class="choice" data-field="winner" data-value="opponent" type="button">AD</button>
+              </div>
             </div>
           </div>
 
-          <div class="quick-line winner-line">
-            <span class="line-title">Ponto</span>
-            <div class="choice-row two">
-              <button class="choice" data-field="winner" data-value="athlete" type="button">Atleta</button>
-              <button class="choice" data-field="winner" data-value="opponent" type="button">Adversário</button>
+          <div class="quick-line quick-split-line serve-line">
+            <div class="quick-subgroup">
+              <span class="line-title">Saque</span>
+              <div class="choice-row two">
+                <button class="choice" data-field="serveAttempt" data-value="primeiro" type="button">1º</button>
+                <button class="choice" data-field="serveAttempt" data-value="segundo" type="button">2º</button>
+              </div>
+            </div>
+            <div class="quick-subgroup direction-subgroup">
+              <span class="line-title">Direção do saque</span>
+              <div class="choice-row three">
+                <button class="choice" data-field="serveDirection" data-value="aberta" type="button">Aberto</button>
+                <button class="choice" data-field="serveDirection" data-value="corpo" type="button">Corpo</button>
+                <button class="choice" data-field="serveDirection" data-value="t" type="button">T</button>
+              </div>
             </div>
           </div>
 
           <div class="quick-line">
-            <span class="line-title">Terminou em</span>
+            <span class="line-title">Terminou em <button class="inline-info" data-info="terminou_em" type="button">i</button></span>
             <div class="choice-row six">
               <button class="choice" data-field="ending" data-value="erro" type="button">Erro</button>
-              <button class="choice" data-field="ending" data-value="winner" type="button">winner<br><small>(bola vencedora)</small></button>
+              <button class="choice" data-field="ending" data-value="winner" type="button">Winner<br><small>(bola vencedora)</small></button>
               <button class="choice" data-field="ending" data-value="passada" type="button">Passada<br><small>(passou o voleador)</small></button>
-              <button class="choice" data-field="ending" data-value="saque_direto" type="button">Saque direto</button>
+              <button class="choice" data-field="ending" data-value="saque_direto" type="button">Ace<br><small>(saque direto)</small></button>
               <button class="choice" data-field="ending" data-value="dupla_falta" type="button">Dupla falta</button>
               <button class="choice" data-field="ending" data-value="ponto_construido" type="button">Ponto construído</button>
             </div>
           </div>
 
-          <div class="quick-line error-only" id="errorActorLine">
-            <span class="line-title">Erro de quem</span>
-            <div class="choice-row two">
-              <button class="choice" data-field="actor" data-value="athlete" type="button">Atleta</button>
-              <button class="choice" data-field="actor" data-value="opponent" type="button">Adversário</button>
-            </div>
-          </div>
-
-          <div class="quick-line not-error-only hidden" id="shotActorLine">
-            <span class="line-title">Jogada de quem</span>
-            <div class="choice-row two">
-              <button class="choice" data-field="actor" data-value="athlete" type="button">Atleta</button>
-              <button class="choice" data-field="actor" data-value="opponent" type="button">Adversário</button>
-            </div>
-          </div>
-
           <div class="quick-line">
-            <span class="line-title">Golpe / situação</span>
-            <div class="choice-row eight">
-              <button class="choice" data-field="stroke" data-value="forehand" type="button">Forehand</button>
-              <button class="choice" data-field="stroke" data-value="backhand" type="button">Backhand</button>
-              <button class="choice" data-field="stroke" data-value="saque" type="button">Saque</button>
+            <span class="line-title">Golpe</span>
+            <div class="choice-row three stroke-grid">
+              <button class="choice" data-field="stroke" data-value="forehand" type="button">FH</button>
+              <button class="choice" data-field="stroke" data-value="backhand" type="button">BH</button>
+              <button class="choice" data-field="stroke" data-value="slice" type="button">Slice</button>
               <button class="choice" data-field="stroke" data-value="devolucao" type="button">Devolução</button>
               <button class="choice" data-field="stroke" data-value="voleio" type="button">Voleio</button>
               <button class="choice" data-field="stroke" data-value="smash" type="button">Smash</button>
-              <button class="choice" data-field="stroke" data-value="corrida" type="button">Corrida</button>
-              <button class="choice" data-field="stroke" data-value="bola_alta" type="button">Bola alta</button>
             </div>
           </div>
 
           <div class="quick-line error-only" id="errorPlaceLine">
-            <span class="line-title">Onde foi o erro</span>
-            <div class="choice-row six">
+            <span class="line-title">Onde</span>
+            <div class="choice-row four">
               <button class="choice" data-field="place" data-value="rede" type="button">Rede</button>
               <button class="choice" data-field="place" data-value="fora_fundo" type="button">Fora fundo</button>
               <button class="choice" data-field="place" data-value="fora_lado" type="button">Fora lado</button>
-              <button class="choice" data-field="place" data-value="corpo" type="button">Corpo</button>
-              <button class="choice" data-field="place" data-value="curta" type="button">Curta</button>
               <button class="choice" data-field="place" data-value="outro" type="button">Outro</button>
             </div>
           </div>
 
           <div class="quick-line not-error-only hidden" id="targetPlaceLine">
-            <span class="line-title">Onde entrou</span>
-            <div class="choice-row eight">
-              <button class="choice" data-field="target" data-value="fundo" type="button">Fundo</button>
-              <button class="choice" data-field="target" data-value="cruzada" type="button">Cruzada</button>
-              <button class="choice" data-field="target" data-value="paralela" type="button">Paralela</button>
-              <button class="choice" data-field="target" data-value="curta" type="button">Curta</button>
-              <button class="choice" data-field="target" data-value="lob" type="button">Lob</button>
-              <button class="choice" data-field="target" data-value="rede" type="button">Rede</button>
-              <button class="choice" data-field="target" data-value="corpo" type="button">Corpo</button>
-              <button class="choice" data-field="target" data-value="aberta" type="button">Aberta</button>
-            </div>
+            <span class="line-title">Onde</span>
+            <div class="choice-row eight" id="targetChoiceRow"></div>
           </div>
 
           <div class="quick-line">
@@ -203,7 +190,7 @@
           </div>
 
           <div class="quick-line">
-            <span class="line-title">Tipo da jogada</span>
+            <span class="line-title">Tipo da jogada <button class="inline-info" data-info="tipo_jogada" type="button">i</button></span>
             <div class="choice-row five">
               <button class="choice" data-field="playType" data-value="saque_mais_um" type="button">Saque +1</button>
               <button class="choice" data-field="playType" data-value="devolucao" type="button">Devolução</button>
@@ -213,15 +200,36 @@
             </div>
           </div>
 
-          <div class="quick-line note-line">
-            <label class="line-title" for="pointNote">Nota</label>
-            <input id="pointNote" type="text" maxlength="80" placeholder="Ex.: acelerou cedo, passador, vento, ficou nervoso..." />
+          <div class="quick-line">
+            <span class="line-title">Nº de golpes</span>
+            <div class="choice-row six rally-grid">
+              <button class="choice" data-field="rallyLength" data-value="1" type="button">1</button>
+              <button class="choice" data-field="rallyLength" data-value="2" type="button">2</button>
+              <button class="choice" data-field="rallyLength" data-value="3" type="button">3</button>
+              <button class="choice" data-field="rallyLength" data-value="4" type="button">4</button>
+              <button class="choice" data-field="rallyLength" data-value="5_8" type="button">5–8</button>
+              <button class="choice" data-field="rallyLength" data-value="9_plus" type="button">9+</button>
+            </div>
           </div>
 
-          <div class="register-actions">
-            <button id="savePointBtn" class="primary-btn save-point" type="submit">Salvar ponto</button>
-            <button id="undoPointBtn" class="ghost-btn" type="button">Desfazer último</button>
-            <button id="finishGameBtn" class="ghost-btn danger-soft" type="button">Fechar jogo</button>
+          <div class="quick-line">
+            <span class="line-title">Posição do Saque +1</span>
+            <div class="choice-row three">
+              <button class="choice" data-field="servePlusPosition" data-value="atras_linha" type="button">Atrás da linha</button>
+              <button class="choice" data-field="servePlusPosition" data-value="na_linha" type="button">Na linha</button>
+              <button class="choice" data-field="servePlusPosition" data-value="dentro_quadra" type="button">Dentro da quadra</button>
+            </div>
+          </div>
+
+          <div class="quick-line note-line">
+            <label class="line-title" for="pointNote">Nota</label>
+            <textarea id="pointNote" maxlength="160" rows="2" placeholder="Ex.: acelerou cedo, passador, vento, ficou nervoso..."></textarea>
+          </div>
+
+          <div class="register-actions final-actions">
+            <button id="savePointBtn" class="primary-btn save-point" type="button">Salvar ponto</button>
+            <button id="undoPointBtn" class="ghost-btn" type="button">Desfazer</button>
+            <button id="finishGameBtn" class="ghost-btn danger-soft" type="button">Fechar</button>
           </div>
         </form>
       </section>
@@ -269,9 +277,9 @@
         <div class="detail-group">
           <div class="mini-head"><h3>Análise do jogador</h3><small>Os gráficos abaixo se referem ao jogador.</small></div>
           <div class="charts-grid">
-            <article class="chart-card"><h3>Como o jogador terminou</h3><div id="gameEndingChart" class="bar-list"></div></article>
+            <article class="chart-card"><h3>Desfechos do jogador</h3><div id="gameEndingChart" class="bar-list"></div></article>
             <article class="chart-card"><h3>Erros do jogador por golpe</h3><div id="gameStrokeChart" class="bar-list"></div></article>
-            <article class="chart-card"><h3>Erros do jogador por lugar</h3><div id="gamePlaceChart" class="bar-list"></div></article>
+            <article class="chart-card"><h3>Erros do jogador por zona</h3><div id="gamePlaceChart" class="bar-list"></div></article>
           </div>
         </div>
 
@@ -285,9 +293,9 @@
         <div class="detail-group">
           <div class="mini-head"><h3>Análise do adversário</h3><small>Os gráficos abaixo se referem ao adversário.</small></div>
           <div class="charts-grid">
-            <article class="chart-card"><h3>Como o adversário terminou</h3><div id="gameOpponentEndingChart" class="bar-list"></div></article>
+            <article class="chart-card"><h3>Desfechos do adversário</h3><div id="gameOpponentEndingChart" class="bar-list"></div></article>
             <article class="chart-card"><h3>Erros do adversário por golpe</h3><div id="gameOpponentStrokeChart" class="bar-list"></div></article>
-            <article class="chart-card"><h3>Erros do adversário por lugar</h3><div id="gameOpponentPlaceChart" class="bar-list"></div></article>
+            <article class="chart-card"><h3>Erros do adversário por zona</h3><div id="gameOpponentPlaceChart" class="bar-list"></div></article>
           </div>
         </div>
 
@@ -321,6 +329,7 @@
         <label>Horário do fim <input id="matchEnd" type="time" /></label>
         <label>Nome do adversário <input id="matchOpponent" type="text" placeholder="Ex.: Tomás Rocha" /></label>
         <label>Campeonato / treino <input id="matchTournament" type="text" placeholder="Ex.: G5 estadual, barragem, amistoso" /></label>
+        <label>Nível <select id="matchLevel"><option value="">Selecione...</option><option value="treino">Treino</option><option value="g1">G1</option><option value="g2">G2</option><option value="g3">G3</option><option value="classe">Classe</option><option value="barragem">Barragem</option></select></label>
         <label>Observação geral <input id="matchGeneralNote" type="text" placeholder="Ex.: adversário passador, vento, quadra lenta" /></label>
       </div>
       <div class="dialog-actions">
