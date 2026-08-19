@@ -56,3 +56,52 @@ body.recording .app-header{display:none!important}
 @media(max-width:760px){.quick-split-line{grid-template-columns:1fr 1fr}.serve-line{grid-template-columns:.76fr 1.24fr}.choice-row.four{grid-template-columns:repeat(4,1fr)}.choice-row.dynamic-eight{grid-template-columns:repeat(4,1fr)}.rally-grid{grid-template-columns:repeat(6,1fr)}.quick-line{grid-template-columns:1fr}.choice{padding:7px 4px;min-height:34px}.point-form{gap:6px;padding:8px}.line-title{font-size:.78rem}.quick-subgroup .line-title{font-size:.68rem}}
 @media(max-width:520px){.pro-score th,.pro-score td{padding:2px 8px}.quick-split-line,.serve-line{grid-template-columns:1fr 1fr}.choice-row.six,.rally-grid{grid-template-columns:repeat(3,1fr)!important}.choice-row.five{grid-template-columns:repeat(5,1fr)!important}.choice-row.dynamic-eight{grid-template-columns:repeat(4,1fr)}.choice-row.four{grid-template-columns:repeat(4,1fr)}.choice{font-size:.76rem}.final-actions{grid-template-columns:1.55fr .95fr .75fr}.final-actions button{font-size:.78rem;padding:9px 5px}.direction-subgroup .choice{font-size:.74rem}.register-screen{height:auto;overflow:visible}}
 .info-table{width:100%;border-collapse:collapse;margin:.6rem 0;font-size:.88rem}.info-table th,.info-table td{border:1px solid var(--line);padding:.48rem .55rem;text-align:left;vertical-align:top}.info-table th{color:var(--accent2);background:rgba(255,255,255,.06)}
+
+/* AveliCoach 2.3.1 - placar superior reduzido */
+.pro-score{
+  padding:3px 8px;
+  margin-bottom:5px;
+  border-radius:14px;
+}
+.pro-score table{
+  min-width:132px;
+  border-spacing:0 1px;
+}
+.pro-score th,.pro-score td{
+  padding:1px 7px;
+  line-height:1;
+}
+.pro-score thead th{
+  font-size:.58rem;
+  letter-spacing:.09em;
+}
+.pro-score tbody th{
+  font-size:.73rem;
+}
+.pro-score tbody td{
+  font-size:.8rem;
+}
+.server-dot{
+  width:.9em;
+}
+@media(max-width:520px){
+  .pro-score{
+    padding:2px 6px;
+    margin-bottom:4px;
+  }
+  .pro-score table{
+    min-width:118px;
+  }
+  .pro-score th,.pro-score td{
+    padding:1px 5px;
+  }
+  .pro-score thead th{
+    font-size:.54rem;
+  }
+  .pro-score tbody th{
+    font-size:.68rem;
+  }
+  .pro-score tbody td{
+    font-size:.74rem;
+  }
+}

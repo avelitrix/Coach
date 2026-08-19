@@ -1153,7 +1153,7 @@ function setup225(){
 setup225();
 
 /* =========================================================
-   AveliCoach 2.3 - tela de registro compacta e novas entradas
+   AveliCoach 2.3.1 - ajustes condicionais de saque e ajuda
    ========================================================= */
 Object.assign(labels, {
   forehand:'FH', backhand:'BH', slice:'Slice', t:'T',
@@ -1165,6 +1165,19 @@ Object.assign(labels, {
 });
 infoTexts.terminou_em = {title:'Terminou em', html: raw`<table class="info-table"><tr><th>Opção</th><th>Significado</th><th>Exemplos</th></tr><tr><td><strong>Erro</strong></td><td>O ponto terminou porque o jogador que executou a ação final errou a bola.</td><td>FH na rede; BH para fora; devolução errada; voleio perdido.</td></tr><tr><td><strong>Winner</strong></td><td>Bola vencedora direta. A última bola encerrou o ponto sem devolução em jogo.</td><td>FH paralelo indefensável; BH cruzado; voleio colocado; smash definitivo.</td></tr><tr><td><strong>Passada</strong></td><td>Bola que passou o jogador que estava na rede.</td><td>FH cruzado passando o voleador; BH paralelo contra subida à rede.</td></tr><tr><td><strong>Ace</strong></td><td>Ponto terminado diretamente pelo saque.</td><td>Saque aberto sem toque; saque no corpo que impede devolução; saque no T.</td></tr><tr><td><strong>Dupla falta</strong></td><td>O sacador errou o primeiro e o segundo saque.</td><td>Segundo saque na rede ou para fora.</td></tr><tr><td><strong>Ponto construído</strong></td><td>Ponto vencido por sequência bem montada antes da última bola.</td><td>Saque aberto + ataque; cruzada para abrir a quadra; profundidade até gerar bola curta.</td></tr></table>`};
 infoTexts.tipo_jogada = {title:'Tipo da jogada', html: raw`<table class="info-table"><tr><th>Opção</th><th>Quando usar</th></tr><tr><td><strong>Saque +1</strong></td><td>Quando o ponto foi decidido logo após o saque, na primeira bola depois do saque.</td></tr><tr><td><strong>Devolução</strong></td><td>Quando o ponto foi decidido na devolução ou pela qualidade da devolução.</td></tr><tr><td><strong>Troca</strong></td><td>Quando o ponto foi decidido em rally normal, com os dois jogadores já dentro da troca.</td></tr><tr><td><strong>Defesa</strong></td><td>Quando o jogador estava sob pressão física ou tática: correndo, atrasado, esticado, desequilibrado, encurralado ou tentando neutralizar. Ajuda a separar erro forçado de erro não forçado.</td></tr><tr><td><strong>Rede</strong></td><td>Quando o ponto foi decidido em situação de rede: voleio, smash, aproximação, fechamento na frente ou passada contra jogador que subiu à rede.</td></tr></table>`};
+
+Object.assign(infoTexts, {
+  saca:{title:'Saca', html:raw`<p>Indica quem iniciou o ponto sacando. O app mantém o sacador do game e alterna automaticamente quando o game muda, mas você pode corrigir manualmente.</p>`},
+  saque:{title:'Saque', html:raw`<p>Registra se o ponto começou com <strong>1º saque</strong> ou <strong>2º saque</strong>. Ajuda a separar aproveitamento e padrões depois do primeiro e do segundo serviço.</p>`},
+  ponto:{title:'Ponto', html:raw`<p>Indica quem venceu o ponto: <strong>AT</strong> para atleta ou <strong>AD</strong> para adversário. Depois de salvar, esse campo volta a ficar vazio.</p>`},
+  direcao_saque:{title:'Direção do saque', html:raw`<p>Registra o alvo do saque: <strong>Aberto</strong>, <strong>Corpo</strong> ou <strong>T</strong>. Em caso de Ace, essa é a informação usada para saber para onde o saque foi.</p>`},
+  golpe:{title:'Golpe', html:raw`<p>Registra o golpe que decidiu o ponto quando a jogada não terminou diretamente no saque. Em <strong>Ace</strong> ou <strong>Dupla falta</strong>, o app infere automaticamente <strong>golpe = saque</strong> e esconde esta subseção.</p>`},
+  onde:{title:'Onde', html:raw`<p>As opções mudam conforme o desfecho. Em <strong>Erro</strong> e <strong>Dupla falta</strong>, indica para onde a bola errada foi: rede, fora fundo, fora lado ou outro. Em winner, passada e ponto construído, indica alvo/direção da bola. Em <strong>Ace</strong>, esta subseção fica oculta porque a direção já está em <strong>Direção do saque</strong>.</p>`},
+  momento:{title:'Momento', html:raw`<p>O app pré-preenche <strong>Normal</strong> ou <strong>Pressão</strong> pelo placar: break point, game point, set point, match point, 30-30, 40-40, vantagem e tie-break a partir de 4-4. Você pode corrigir manualmente.</p>`},
+  numero_golpes:{title:'Nº de golpes', html:raw`<p>Registra a duração aproximada do ponto. Para <strong>Ace</strong> e <strong>Dupla falta</strong>, o app pré-preenche <strong>1</strong>.</p>`},
+  posicao_saque_1:{title:'Posição do Saque +1', html:raw`<p>Registra onde o atleta estava para a bola seguinte ao saque: atrás da linha, na linha ou dentro da quadra. Em <strong>Ace</strong> e <strong>Dupla falta</strong>, não há Saque +1; por isso a subseção fica oculta.</p>`},
+  nota:{title:'Nota', html:raw`<p>Campo livre para observações rápidas. A tecla Enter no celular não deve salvar o ponto; o ponto só é salvo pelo botão <strong>Salvar ponto</strong>.</p>`}
+});
 infoTexts.comp_break_points = {title:'Break points', html: raw`<p>Conta os pontos em que o devolvedor poderia vencer o game. A métrica aparece como <strong>convertidos/oportunidades</strong>.</p><div class="formula">Break point = devolvedor vence o game se ganhar o próximo ponto.</div><p>Exemplos: 30-40 ou 40-AD contra quem está sacando.</p>`};
 comparisonMetricDefs.break_points = { label:'Break points', info:'comp_break_points', benchmark:0, ref:'-', refSub:'Convertidos/oportunidades', player:a=>metricObj(a.breakPoints?.athlete?.conv||0, a.breakPoints?.athlete?.opp||0), opp:a=>metricObj(a.breakPoints?.opponent?.conv||0, a.breakPoints?.opponent?.opp||0) };
 
@@ -1189,7 +1202,7 @@ function inferStrokeFromPoint(d){
 function inferPlayTypeFromDraft(d){
   if(d.playTypeUserSet && d.playType) return d.playType;
   if(d.ending==='passada') return 'rede';
-  if(['saque_direto','dupla_falta'].includes(d.ending)) return d.playType || 'saque_mais_um';
+  if(['saque_direto','dupla_falta'].includes(d.ending)) return null;
   if(d.stroke==='voleio' || d.stroke==='smash') return 'rede';
   if(d.stroke==='devolucao') return 'devolucao';
   if(['forehand','backhand','slice'].includes(d.stroke)) return d.playType || 'troca';
@@ -1216,17 +1229,29 @@ function renderChoices(){
   const candidate={...state.draft, order:(state.activeGame?.points?.length||0)+1};
   const auto=autoMomentForPoint(state.activeGame||{points:[]}, candidate);
   if(!state.draft.momentUserSet) state.draft.moment = (auto && auto !== 'normal') ? 'pressao' : 'normal';
-  if(!state.draft.playTypeUserSet) state.draft.playType = inferPlayTypeFromDraft(state.draft);
-  if(state.draft.ending==='saque_direto') state.draft.rallyLength = state.draft.rallyLength || '1';
-  if(state.draft.stroke==='devolucao') state.draft.rallyLength = state.draft.rallyLength || '2';
-  if(state.draft.playType==='saque_mais_um') state.draft.rallyLength = state.draft.rallyLength || '3';
+  const isAce=state.draft.ending==='saque_direto';
+  const isDouble=state.draft.ending==='dupla_falta';
+  const isServiceTerminal=isAce||isDouble;
+  if(isServiceTerminal){
+    state.draft.stroke='saque';
+    state.draft.playType=null;
+    state.draft.servePlusPosition=null;
+    state.draft.rallyLength='1';
+  } else if(!state.draft.playTypeUserSet) state.draft.playType = inferPlayTypeFromDraft(state.draft);
+  if(!isServiceTerminal && state.draft.stroke==='devolucao') state.draft.rallyLength = state.draft.rallyLength || '2';
+  if(!isServiceTerminal && state.draft.playType==='saque_mais_um') state.draft.rallyLength = state.draft.rallyLength || '3';
   renderTargetChoices();
-  const isError=state.draft.ending==='erro'||state.draft.ending==='dupla_falta'||!state.draft.ending;
-  $$('.error-only').forEach(el=>el.classList.toggle('hidden',!isError));
-  $$('.not-error-only').forEach(el=>el.classList.toggle('hidden',isError));
+  const showErrorWhere=state.draft.ending==='erro'||state.draft.ending==='dupla_falta'||!state.draft.ending;
+  const showTargetWhere=!!state.draft.ending && !showErrorWhere && !isAce;
+  $$('.error-only').forEach(el=>el.classList.toggle('hidden',!showErrorWhere));
+  $$('.not-error-only').forEach(el=>el.classList.toggle('hidden',!showTargetWhere));
+  $('#strokeLine')?.classList.toggle('hidden',isServiceTerminal);
+  $('#playTypeLine')?.classList.toggle('hidden',isServiceTerminal);
+  $('#servePlusPositionLine')?.classList.toggle('hidden',isServiceTerminal);
   setButtonSelections();
   renderScore();
   bindInfoButtons(document);
+  $$('.inline-info').forEach(btn=>btn.onclick=()=>showInfo(btn.dataset.info));
 }
 function handleChoice(btn){
   const field=btn.dataset.field, value=btn.dataset.value;
@@ -1235,7 +1260,13 @@ function handleChoice(btn){
   if(field==='playType') state.draft.playTypeUserSet=true;
   if(field==='ending'){
     state.draft.place=null; state.draft.target=null;
-    if(value==='saque_direto' || value==='dupla_falta') state.draft.stroke='saque';
+    if(value==='saque_direto' || value==='dupla_falta'){
+      state.draft.stroke='saque';
+      state.draft.playType=null;
+      state.draft.playTypeUserSet=false;
+      state.draft.servePlusPosition=null;
+      state.draft.rallyLength='1';
+    }
   }
   if(field==='stroke' && ['voleio','smash','devolucao','forehand','backhand','slice'].includes(value)){
     if(!state.draft.playTypeUserSet) state.draft.playType=inferPlayTypeFromDraft(state.draft);
@@ -1300,8 +1331,9 @@ function savePoint(e){
   const base={server:filled.server||'athlete',winner:val(filled.winner),ending:val(filled.ending)};
   base.actor=inferActorFromPoint({...base,actor:filled.actor});
   base.stroke=inferStrokeFromPoint({...base,stroke:filled.stroke});
-  base.playType=val(inferPlayTypeFromDraft({...filled, ending:base.ending, stroke:base.stroke}));
-  const p={id:uid(),order:oldPoints.length+1,createdAt:savedAt.toISOString(),savedAt:savedAt.toISOString(),savedAtLocal:localDateTimeISO(savedAt),savedDate:localDateISO(savedAt),savedTime:localTimeHMS(savedAt),savedTimestampMs:savedAt.getTime(),matchDate:state.activeGame.date||localDateISO(savedAt),server:base.server,winner:base.winner,ending:base.ending,actor:val(base.actor),stroke:val(base.stroke),place:val(filled.place),target:val(filled.target),moment:val(filled.moment||'normal'),momentManual:val(filled.moment||'normal'),momentAuto:'normal',playType:base.playType,serveAttempt:val(filled.serveAttempt),serveDirection:val(filled.serveDirection),rallyLength:val(filled.rallyLength),servePlusPosition:val(filled.servePlusPosition),note:$('#pointNote').value.trim()};
+  const isAce=base.ending==='saque_direto', isDouble=base.ending==='dupla_falta', isServiceTerminal=isAce||isDouble;
+  base.playType=isServiceTerminal ? 'nao_informado' : val(inferPlayTypeFromDraft({...filled, ending:base.ending, stroke:base.stroke}));
+  const p={id:uid(),order:oldPoints.length+1,createdAt:savedAt.toISOString(),savedAt:savedAt.toISOString(),savedAtLocal:localDateTimeISO(savedAt),savedDate:localDateISO(savedAt),savedTime:localTimeHMS(savedAt),savedTimestampMs:savedAt.getTime(),matchDate:state.activeGame.date||localDateISO(savedAt),server:base.server,winner:base.winner,ending:base.ending,actor:val(base.actor),stroke:val(base.stroke),place:isAce?'nao_informado':val(filled.place),target:isServiceTerminal?'nao_informado':val(filled.target),moment:val(filled.moment||'normal'),momentManual:val(filled.moment||'normal'),momentAuto:'normal',playType:base.playType,serveAttempt:val(filled.serveAttempt),serveDirection:val(filled.serveDirection),rallyLength:isServiceTerminal?'1':val(filled.rallyLength),servePlusPosition:isServiceTerminal?'nao_informado':val(filled.servePlusPosition),note:$('#pointNote').value.trim()};
   p.momentAuto=autoMomentForPoint(state.activeGame,p);
   state.activeGame.points.push(p);
   state.activeGame.lastPointSavedAt=p.savedAt; state.activeGame.lastPointSavedAtLocal=p.savedAtLocal; state.activeGame.lastPointSavedTimestampMs=p.savedTimestampMs;
@@ -1309,7 +1341,14 @@ function savePoint(e){
   const nextServer = afterGames>beforeGames ? opposite(p.server) : p.server;
   state.draft=emptyDraft(nextServer);
   $('#pointNote').value=''; persistActiveGame(); renderChoices();
-  requestAnimationFrame(()=>($('#compactScore')||document.body).scrollIntoView({behavior:'smooth',block:'start'}));
+  setTimeout(scrollRegistroTopo,80);
+}
+function scrollRegistroTopo(){
+  const target=$('#compactScore')||$('#pointForm')||$('#registerScreen');
+  if(target) target.scrollIntoView({behavior:'smooth',block:'start'});
+  try{ window.scrollTo({top:0,behavior:'smooth'}); }catch(_){ window.scrollTo(0,0); }
+  document.documentElement.scrollTop=0;
+  document.body.scrollTop=0;
 }
 function computeBreakPoints(points){
   const out={athlete:{opp:0,conv:0,saved:0,against:0},opponent:{opp:0,conv:0,saved:0,against:0}};
