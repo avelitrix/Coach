@@ -1530,3 +1530,156 @@ function exportGamePdf(){const JS=pdfCheckLib();if(!JS)return;const g=loadGames(
 function exportPeriodPdf(){const JS=pdfCheckLib();if(!JS)return;const games=loadGames().filter(inPeriod),a=analyze(games),doc=new JS({orientation:'landscape',unit:'mm',format:'a4'});doc.setFillColor(248,251,250);doc.rect(0,0,297,210,'F');onePageHeader(doc,'Métricas do mês','Relatório técnico em uma página',`${$('#periodStart').value||''} a ${$('#periodEnd').value||''}`);tableMetricsPdf222(doc,14,42,269,120,a);doc.save(`metricas-${$('#periodStart').value||'inicio'}-${$('#periodEnd').value||'fim'}.pdf`);}
 function setup232(){const gp=$('#exportGamePdfBtn');if(gp)gp.onclick=exportGamePdf;const gh=$('#exportGameHtmlBtn');if(gh)gh.onclick=exportGameHtml;const pp=$('#exportPdfBtn');if(pp)pp.onclick=exportPeriodPdf;if(state.selectedGameId){const g=loadGames().find(x=>x.id===state.selectedGameId);if(g)openGameDetail(g.id);}}
 setup232();
+
+/* =========================================================
+   AveliCoach 2.3.3 - correções de índices, gráficos e export
+   ========================================================= */
+try{ labels.t='T'; labels.atras_linha='Atrás'; labels.na_linha='Linha'; labels.dentro_quadra='Dentro'; }catch(e){}
+state.chartZoom = state.chartZoom || { inMatch: 1, param: 1 };
+
+function countMetric233(count,totalForRef,benchmarkPct,mode){
+  const c=Number(count)||0, den=Number(totalForRef)||0, bm=Number(benchmarkPct)||0;
+  return {kind:'count',count:c,total:den,pct:den?pct(c,den):0,display:String(c),short:String(c),benchmarkValue:den?Math.round((bm/100)*den):0,mode:mode||'min'};
+}
+function ratioMetric233(count,total,showPct=true){
+  const c=Number(count)||0, den=Number(total)||0, p=den?pct(c,den):0;
+  return {kind:'ratio',count:c,total:den,pct:p,display:showPct?`${c}/${den} (${p}%)`:`${c}/${den}`,short:showPct?`${c}/${den} (${p}%)`:`${c}/${den}`};
+}
+function distMetric233(items,total){
+  const t=Number(total)||0;
+  return {kind:'distribution',total:t,items:items.map(it=>({key:it.key,label:it.label,count:Number(it.count)||0,pct:t?pct(it.count,t):0})),display:items.map(it=>`${it.label}: ${it.count}`).join(' · '),short:''};
+}
+function countValues(points,field,values){
+  return values.map(v=>({key:v.key,label:v.label,count:points.filter(p=>p[field]===v.key).length}));
+}
+function serveDirectionDistribution(a,side){
+  const pts=a.points.filter(p=>p.server===side && ['aberta','corpo','t'].includes(p.serveDirection));
+  return distMetric233(countValues(pts,'serveDirection',[{key:'aberta',label:'Aberto'},{key:'corpo',label:'Corpo'},{key:'t',label:'T'}]),pts.length);
+}
+function servePlusPositionDistribution(a,side){
+  const pts=a.points.filter(p=>p.server===side && ['atras_linha','na_linha','dentro_quadra'].includes(p.servePlusPosition));
+  return distMetric233(countValues(pts,'servePlusPosition',[{key:'atras_linha',label:'Atrás'},{key:'na_linha',label:'Linha'},{key:'dentro_quadra',label:'Dentro'}]),pts.length);
+}
+
+Object.assign(comparisonMetricDefs, {
+  break_points:{label:'Break points',info:'idx_break_points_convertidos',benchmark:35,mode:'min',player:a=>ratioMetric233(a.breakPoints?.athlete?.conv||0,a.breakPoints?.athlete?.opp||0,false),opp:a=>ratioMetric233(a.breakPoints?.opponent?.conv||0,a.breakPoints?.opponent?.opp||0,false)},
+  games_saque_vencidos:{label:'Games de saque vencidos',info:'idx_games_saque_vencidos',benchmark:70,mode:'min',player:a=>{const e=enrichAnalysis232(a);return ratioMetric233(e.gbs.athlete.won,e.gbs.athlete.total,true)},opp:a=>{const e=enrichAnalysis232(a);return ratioMetric233(e.gbs.opponent.won,e.gbs.opponent.total,true)}},
+  construcao:{label:'Construção do ponto',info:'idx_construcao',benchmark:24,mode:'min',player:a=>ratioMetric233(a.constructionCount,a.won,true),opp:a=>ratioMetric233(a.constructionOppCount,a.lost,true)},
+  erros_forcados:{label:'Erros forçados',info:'idx_erros_forcados',benchmark:10,mode:'max',player:a=>countMetric233(a.athleteForcedErrors.length,a.athleteErrors.length,10,'max'),opp:a=>countMetric233(a.opponentForcedErrors.length,a.opponentErrors.length,10,'max')},
+  erros_nao_forcados:{label:'Erros não forçados',info:'idx_erros_nao_forcados',benchmark:14,mode:'max',player:a=>countMetric233(a.athleteUnforcedErrors.length,a.athleteErrors.length,14,'max'),opp:a=>countMetric233(a.opponentUnforcedErrors.length,a.opponentErrors.length,14,'max')},
+  dupla_falta:{label:'Duplas faltas',info:'idx_dupla_falta',benchmark:4,mode:'max',player:a=>countMetric233(a.athleteDoubleFaults.length,a.serveTotal,4,'max'),opp:a=>countMetric233(a.opponentDoubleFaults.length,a.returnTotal,4,'max')},
+  aces:{label:'Aces (saques diretos)',info:'idx_aces',benchmark:6,mode:'min',player:a=>countMetric233(a.athleteAces.length,a.serveTotal,6,'min'),opp:a=>countMetric233(a.opponentAces.length,a.returnTotal,6,'min')},
+  direcao_saque:{label:'Direção do saque',info:'idx_direcao_saque',benchmark:0,mode:'dist',player:a=>serveDirectionDistribution(a,'athlete'),opp:a=>serveDirectionDistribution(a,'opponent')},
+  posicao_saque_1:{label:'Posição do Saque +1',info:'idx_posicao_saque_1',benchmark:0,mode:'dist',player:a=>servePlusPositionDistribution(a,'athlete'),opp:a=>servePlusPositionDistribution(a,'opponent')}
+});
+Object.assign(infoTexts,{
+  idx_break_points_convertidos:{title:'Break points',html:raw`<p><strong>O que é:</strong> oportunidades em que o jogador poderia quebrar o saque adversário.</p><p><strong>Para que serve:</strong> mostra se a pressão na devolução virou quebra de saque.</p><p><strong>Como é calculado:</strong> break points convertidos / oportunidades de break point.</p>`},
+  idx_games_saque_vencidos:{title:'Games de saque vencidos',html:raw`<p><strong>O que é:</strong> games em que o jogador sacou e confirmou o serviço.</p><p><strong>Para que serve:</strong> mostra se o jogador consegue transformar o saque em manutenção do game.</p><p><strong>Como é calculado:</strong> games vencidos sacando / games em que sacou.</p>`},
+  idx_construcao:{title:'Construção do ponto',html:raw`<p><strong>O que é:</strong> pontos vencidos classificados como construção do ponto.</p><p><strong>Para que serve:</strong> mostra como o jogador está ganhando pontos, separando construção de pontos mais reativos ou por erro adversário.</p><p><strong>Como é calculado:</strong> pontos construídos / pontos vencidos pelo jogador.</p>`},
+  idx_erros_forcados:{title:'Erros forçados',html:raw`<p><strong>O que é:</strong> quantidade de erros cometidos sob pressão, defesa ou corrida, conforme a regra atual do AveliCoach.</p><p><strong>Para que serve:</strong> diferencia erros provocados pelo adversário dos erros em situação controlada.</p><p><strong>Como é calculado:</strong> contagem absoluta de erros forçados estimados.</p>`},
+  idx_erros_nao_forcados:{title:'Erros não forçados',html:raw`<p><strong>O que é:</strong> quantidade de erros cometidos fora de contexto defensivo/forçado registrado.</p><p><strong>Para que serve:</strong> acompanha estabilidade e controle da execução.</p><p><strong>Como é calculado:</strong> contagem absoluta de erros não forçados estimados.</p>`},
+  idx_dupla_falta:{title:'Duplas faltas',html:raw`<p><strong>O que é:</strong> quantidade de pontos perdidos diretamente por dupla falta.</p><p><strong>Para que serve:</strong> mede o custo direto da instabilidade do saque.</p><p><strong>Como é calculado:</strong> contagem absoluta de duplas faltas.</p>`},
+  idx_aces:{title:'Aces (saques diretos)',html:raw`<p><strong>O que é:</strong> quantidade de pontos vencidos diretamente com o saque.</p><p><strong>Para que serve:</strong> mede o volume de dano imediato produzido pelo serviço.</p><p><strong>Como é calculado:</strong> contagem absoluta de aces/saques diretos.</p>`}
+});
+
+const INDEX_SECTIONS_233 = [
+  {title:'Índices de resultado', keys:['pontos_vencidos','saque','games_saque_vencidos','devolucao','pontos_erro','dupla_falta','aces','pressao','pontos_positivos','primeiro_saque_ganho','break_points','erros_forcados','pontos_curtos_eficiencia','direcao_saque_eficiencia','saque_mais_um_dentro']},
+  {title:'Índices de desenvolvimento', keys:['primeiro_saque_dentro','segundo_saque_ganho','pontos_curtos_share','erros_nao_forcados','construcao','direcao_saque','posicao_saque_1','consistencia','agressividade']}
+];
+function metricBarPct233(m,scale){
+  if(!m) return 0;
+  if(m.kind==='count') return scale?Math.max(0,Math.min(100,(Number(m.count)||0)/scale*100)):0;
+  return Math.max(0,Math.min(100,Number(m.pct)||0));
+}
+function metricBenchmarkPct233(m,benchmark,scale){
+  if(m?.kind==='count') return scale?Math.max(0,Math.min(100,(Number(m.benchmarkValue)||0)/scale*100)):0;
+  return Math.max(0,Math.min(100,Number(benchmark)||0));
+}
+function displayForMetric233(m){ return m?.short || m?.display || ''; }
+function comparisonRows(a){
+  const rows=[];
+  INDEX_SECTIONS_233.forEach(sec=>{rows.push({section:sec.title});sec.keys.forEach(key=>{const def=comparisonMetricDefs[key];if(!def)return;const left=def.player(a),mid=def.opp(a);let scale=100;if(left.kind==='count'||mid.kind==='count')scale=Math.max(1,left.count||0,mid.count||0,left.benchmarkValue||0,mid.benchmarkValue||0);rows.push({key,label:def.label,info:def.info||('idx_'+key),ref:def.ref||'',benchmark:Number(def.benchmark)||0,mode:def.mode||'min',kind:left.kind||mid.kind||'ratio',scale,left,mid,leftDisplay:displayForMetric233(left),midDisplay:displayForMetric233(mid)});});});
+  return rows;
+}
+function distributionHtml233(m,side){
+  const items=m.items||[]; const total=m.total||0;
+  const bars=items.map((it,i)=>`<i class="c${i+1}" style="width:${Math.max(0,Math.min(100,it.pct))}%"></i>`).join('');
+  const txt=items.map(it=>`${it.label} ${it.count}`).join(' · ');
+  return `<div class="dist-side ${side}"><span class="dist-text">${escapeHtml(txt||'Sem dados')}</span><span class="dist-mini">${bars}</span></div>`;
+}
+function indexRowHtml232(r,withInfo=true){
+  if(r.kind==='distribution'){
+    return `<div class="index-tv-row distribution ${state.gameTrendMetric===r.key?'active':''}" data-metric="${escapeHtml(r.key)}"><div class="index-name">${withInfo?`<button class="index-info" data-info="${escapeHtml(r.info)}" type="button">i</button>`:''}<span>${escapeHtml(r.label)}</span></div><div class="dist-pack">${distributionHtml233(r.left,'at')}</div><div class="idx-axis"></div><div class="dist-pack">${distributionHtml233(r.mid,'ad')}</div></div>`;
+  }
+  const at=metricBarPct233(r.left,r.scale), ad=metricBarPct233(r.mid,r.scale), bmA=metricBenchmarkPct233(r.left,r.benchmark,r.scale), bmD=metricBenchmarkPct233(r.mid,r.benchmark,r.scale);
+  return `<div class="index-tv-row ${state.gameTrendMetric===r.key?'active':''}" data-metric="${escapeHtml(r.key)}"><div class="index-name">${withInfo?`<button class="index-info" data-info="${escapeHtml(r.info)}" type="button">i</button>`:''}<span>${escapeHtml(r.label)}</span></div><div class="idx-val at">${escapeHtml(r.leftDisplay)}</div><div class="idx-bar-cell at"><span class="idx-bar-bg" style="width:${bmA}%"></span><span class="idx-bar-real" style="width:${at}%"></span></div><div class="idx-axis"></div><div class="idx-bar-cell ad"><span class="idx-bar-bg" style="width:${bmD}%"></span><span class="idx-bar-real" style="width:${ad}%"></span></div><div class="idx-val ad">${escapeHtml(r.midDisplay)}</div></div>`;
+}
+function renderComparisonTable(target,a){
+  const rows=comparisonRows(a);let html='<div class="index-tv"><div class="index-tv-head"><div>Índice</div><div class="at-head">AT</div><div class="ad-head">AD</div></div>';rows.forEach(r=>{if(r.section)html+=`<div class="index-section-title">${escapeHtml(r.section)}</div>`; else html+=indexRowHtml232(r,true);});html+='</div>';target.innerHTML=html;
+  $$('.index-tv-row',target).forEach(row=>row.onclick=e=>{if(e.target.closest('.index-info'))return;state.gameTrendMetric=row.dataset.metric;const g=loadGames().find(x=>x.id===state.selectedGameId);if(g){renderComparisonTable(target,analyze([g]));renderGameInMatchTrend(g);renderGameParameterTrend(g);$('#gameInMatchTrendChart')?.scrollIntoView({behavior:'smooth',block:'center'});}});
+  $$('.index-info',target).forEach(btn=>btn.onclick=e=>{e.stopPropagation();showInfo(btn.dataset.info);});
+}
+
+function setupChartHeader233(blockId, titleId, subtitleId, chartId, chartKey, infoText){
+  const block=$('#'+blockId); if(!block) return;
+  const head=block.querySelector('.mini-head'); if(!head) return;
+  let tools=head.querySelector('.chart-toolbar');
+  if(!tools){tools=document.createElement('div');tools.className='chart-toolbar';tools.innerHTML=`<button class="chart-info" type="button" aria-label="Informações do gráfico">i</button><button class="chart-zoom" data-zoom="out" type="button">−</button><button class="chart-zoom" data-zoom="in" type="button">+</button>`;head.appendChild(tools);}
+  tools.querySelector('.chart-info').onclick=()=>showInfoBox('Gráfico de evolução',`<p>${escapeHtml(infoText)}</p><p>Use + para aproximar, - para mostrar mais pontos, e arraste o gráfico horizontalmente para navegar.</p>`);
+  tools.querySelector('[data-zoom="out"]').onclick=()=>{state.chartZoom[chartKey]=Math.max(1,(state.chartZoom[chartKey]||1)-.5);const g=loadGames().find(x=>x.id===state.selectedGameId);if(g){chartKey==='inMatch'?renderGameInMatchTrend(g):renderGameParameterTrend(g);}};
+  tools.querySelector('[data-zoom="in"]').onclick=()=>{state.chartZoom[chartKey]=Math.min(5,(state.chartZoom[chartKey]||1)+.5);const g=loadGames().find(x=>x.id===state.selectedGameId);if(g){chartKey==='inMatch'?renderGameInMatchTrend(g):renderGameParameterTrend(g);}};
+}
+function showInfoBox(title,html){const dlg=$('#infoDialog'), box=$('#infoContent');if(!dlg||!box)return;box.innerHTML=`<button class="x-btn" onclick="document.getElementById('infoDialog').close()" type="button">×</button><h2>${escapeHtml(title)}</h2>${html}`;dlg.showModal();}
+function bindDragScroll233(el){if(!el||el.dataset.dragBound)return;el.dataset.dragBound='1';let down=false,startX=0,startLeft=0;el.addEventListener('pointerdown',e=>{down=true;startX=e.clientX;startLeft=el.scrollLeft;el.classList.add('dragging');el.setPointerCapture?.(e.pointerId);});el.addEventListener('pointermove',e=>{if(!down)return;el.scrollLeft=startLeft-(e.clientX-startX);});['pointerup','pointercancel','pointerleave'].forEach(ev=>el.addEventListener(ev,()=>{down=false;el.classList.remove('dragging');}));}
+function renderLineChart(target,cfg){
+  const pointsA=cfg.pointsA||[],pointsB=cfg.pointsB||[],pointCount=Math.max(pointsA.length,pointsB.length);if(!pointCount){target.innerHTML='<p class="line-chart-empty">Sem dados suficientes.</p>';return;}
+  const zoom=cfg.zoom||1,unit=cfg.unit||'percent',suffix=unit==='percent'?'%':'';
+  const basePerPoint=unit==='count'?46:42;const W=Math.max(920,48+28+Math.max(1,pointCount-1)*basePerPoint*zoom),H=330,m={top:34,right:28,bottom:48,left:48};const innerW=W-m.left-m.right,innerH=H-m.top-m.bottom;
+  const allVals=[...pointsA.map(p=>Number(p.value)||0),...pointsB.map(p=>Number(p.value)||0),Number(cfg.benchmark)||0];const maxVal=unit==='percent'?100:Math.max(3,Math.ceil(Math.max(...allVals)*1.15));
+  const yTicks=unit==='percent'?[0,25,50,75,100]:Array.from({length:5},(_,i)=>Math.round(maxVal*i/4));
+  const coords=arr=>arr.map((s,i)=>({...s,x:m.left+(pointCount===1?innerW/2:i*(innerW/(pointCount-1))),y:m.top+innerH-(Math.max(0,Math.min(maxVal,Number(s.value)||0))/maxVal)*innerH}));
+  const A=coords(pointsA),B=coords(pointsB);const bench=Number(cfg.benchmark)||0,benchY=m.top+innerH-(Math.max(0,Math.min(maxVal,bench))/maxVal)*innerH;const poly=arr=>arr.map(p=>`${p.x},${p.y}`).join(' ');const tickStep=Math.max(1,Math.ceil(pointCount/10));
+  target.innerHTML=`<div class="line-chart-scroll"><svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Gráfico temporal">
+    ${yTicks.map(v=>{const y=m.top+innerH-(v/maxVal)*innerH;return `<line x1="${m.left}" y1="${y}" x2="${W-m.right}" y2="${y}" stroke="rgba(255,255,255,.10)"/><text x="${m.left-10}" y="${y+4}" text-anchor="end" fill="#9fb5c8" font-size="11">${v}${suffix}</text>`;}).join('')}
+    <line x1="${m.left}" y1="${m.top+innerH}" x2="${W-m.right}" y2="${m.top+innerH}" stroke="rgba(255,255,255,.22)"/><line x1="${m.left}" y1="${m.top}" x2="${m.left}" y2="${m.top+innerH}" stroke="rgba(255,255,255,.22)"/>
+    ${bench?`<line x1="${m.left}" y1="${benchY}" x2="${W-m.right}" y2="${benchY}" stroke="#ffd166" stroke-width="2" stroke-dasharray="8 6"/><text x="${W-m.right}" y="${benchY-8}" text-anchor="end" fill="#ffd166" font-size="11">Referência COSAT U14: ${bench}${suffix}</text>`:''}
+    ${A.length?`<polyline points="${poly(A)}" fill="none" stroke="${cfg.colorA||'#61d5ff'}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>`:''}
+    ${B.length?`<polyline points="${poly(B)}" fill="none" stroke="${cfg.colorB||'#ffd166'}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>`:''}
+    ${A.map(p=>`<circle cx="${p.x}" cy="${p.y}" r="4.4" fill="${cfg.colorA||'#61d5ff'}" stroke="#07131f" stroke-width="1.6"><title>${escapeHtml(p.tooltip||`${p.label} - ${cfg.nameA||'Jogador'}: ${p.display||p.value}`)}</title></circle>`).join('')}
+    ${B.map(p=>`<circle cx="${p.x}" cy="${p.y}" r="4.4" fill="${cfg.colorB||'#ffd166'}" stroke="#07131f" stroke-width="1.6"><title>${escapeHtml(p.tooltip||`${p.label} - ${cfg.nameB||'Adversário'}: ${p.display||p.value}`)}</title></circle>`).join('')}
+    ${pointsA.map((p,i)=>i%tickStep===0||i===pointCount-1?`<text x="${A[i]?.x??(m.left+innerW/2)}" y="${H-14}" text-anchor="middle" fill="#9fb5c8" font-size="11">${escapeHtml(p.label)}</text>`:'').join('')}
+    <g transform="translate(${m.left},${m.top-18})"><circle cx="0" cy="0" r="5" fill="${cfg.colorA||'#61d5ff'}"></circle><text x="10" y="4" fill="#dff6ff" font-size="11">${escapeHtml(cfg.nameA||'Jogador')}</text>${cfg.pointsB?.length?`<circle cx="112" cy="0" r="5" fill="${cfg.colorB||'#ffd166'}"></circle><text x="122" y="4" fill="#dff6ff" font-size="11">${escapeHtml(cfg.nameB||'Adversário')}</text>`:''}</g>
+  </svg></div>`;
+  bindDragScroll233($('.line-chart-scroll',target));
+}
+function pointMetricEvent233(p,key){const actor=pointActor(p);switch(key){case 'erros_forcados':return (p.ending==='erro'||p.ending==='dupla_falta')&&actor==='athlete'&&(['defesa','corrida'].includes(p.playType)||p.stroke==='corrida');case 'erros_nao_forcados':return (p.ending==='erro'||p.ending==='dupla_falta')&&actor==='athlete'&&!(['defesa','corrida'].includes(p.playType)||p.stroke==='corrida');case 'dupla_falta':return p.ending==='dupla_falta'&&actor==='athlete';case 'aces':return p.ending==='saque_direto'&&actor==='athlete';default:return pointSuccessForMetric(p,key);} }
+function countTrendKeys233(){return ['erros_forcados','erros_nao_forcados','dupla_falta','aces'];}
+function inMatchSeriesForMetric(game,key){
+  const pts=(game.points||[]).map((p,i)=>({...p,order:p.order||i+1,actor:pointActor(p),stroke:inferStrokeFromPoint(p)}));
+  if(countTrendKeys233().includes(key)){let c=0;const vals=[];return pts.reduce((arr,p)=>{const hit=pointMetricEvent233(p,key);if(hit)c++;vals.push(hit?1:0);const last=vals.slice(-3).reduce((s,v)=>s+v,0);arr.push({label:String(p.order),value:c,display:String(c),moving:last,unit:'count',tooltip:`Ponto ${p.order}: acumulado ${c}; últimas 3: ${last}`});return arr;},[]);}
+  if(key==='break_points') return inMatchBreakPointSeries(game,'break_points_convertidos');
+  let valids=[],success=0;return pts.reduce((arr,p)=>{if(!pointValidForMetric(p,key))return arr;const ok=pointSuccessForMetric(p,key,valids.length);valids.push(ok);if(ok)success++;const cum=pct(success,valids.length);const win=valids.slice(-3);const mov=pct(win.filter(Boolean).length,win.length);arr.push({label:String(p.order),value:cum,display:`${success}/${valids.length} (${cum}%)`,moving:mov,tooltip:`Ponto ${p.order}: acumulado ${success}/${valids.length} (${cum}%); MM3 ${mov}%`});return arr;},[]);
+}
+function renderGameInMatchTrend(game){let wrap=$('#gameInMatchTrendBlock');if(!wrap){const hist=$('#gameParamTrendChart')?.closest('.detail-group');if(hist){wrap=document.createElement('div');wrap.id='gameInMatchTrendBlock';wrap.className='detail-group chart-card inmatch-trend-card';wrap.innerHTML='<div class="mini-head"><h3 id="gameInMatchTrendTitle">Evolução no jogo</h3><small id="gameInMatchTrendSubtitle">Acumulado e média móvel das últimas 3 ocorrências válidas.</small></div><div id="gameInMatchTrendChart" class="line-chart-wrap"></div>';hist.parentNode.insertBefore(wrap,hist);}}
+ const def=comparisonMetricDefs[state.gameTrendMetric]||comparisonMetricDefs.pontos_vencidos;const series=inMatchSeriesForMetric(game,state.gameTrendMetric);$('#gameInMatchTrendTitle').textContent=`Evolução no jogo: ${def.label}`;const isCount=countTrendKeys233().includes(state.gameTrendMetric);$('#gameInMatchTrendSubtitle').textContent=isCount?'Somente AT. Linha azul = acumulado. Linha dourada = ocorrências nos últimos 3 pontos.':'Somente AT. Linha azul = acumulado. Linha dourada = média móvel das últimas 3 ocorrências válidas.';setupChartHeader233('gameInMatchTrendBlock','gameInMatchTrendTitle','gameInMatchTrendSubtitle','gameInMatchTrendChart','inMatch',$('#gameInMatchTrendSubtitle').textContent);if(!series.length){$('#gameInMatchTrendChart').innerHTML='<p class="line-chart-empty">Dados insuficientes para esse índice durante o jogo.</p>';return;}renderLineChart($('#gameInMatchTrendChart'),{benchmark:isCount?0:def.benchmark||0,pointsA:series.map(s=>({label:s.label,value:s.value,display:s.display,tooltip:s.tooltip})),pointsB:series.map(s=>({label:s.label,value:s.moving,display:isCount?String(s.moving):`${s.moving}%`,tooltip:s.tooltip})),colorA:'#61d5ff',colorB:'#ffd166',nameA:'Acumulado',nameB:'MM 3',zoom:state.chartZoom.inMatch||1,unit:isCount?'count':'percent'});}
+function getGamesLastYearFor(targetGame){const end=parseISODate(targetGame.date);if(!end)return [targetGame];const start=new Date(end);start.setFullYear(start.getFullYear()-1);const lvl=normalizeLevel(targetGame);return loadGames().filter(g=>{const dt=parseISODate(g.date);return dt&&dt>=start&&dt<=end&&normalizeLevel(g)===lvl;}).sort((a,b)=>(a.date||'').localeCompare(b.date||''));}
+function renderGameParameterTrend(game){const def=comparisonMetricDefs[state.gameTrendMetric]||comparisonMetricDefs.pontos_vencidos;const games=getGamesLastYearFor(game);const isCount=countTrendKeys233().includes(state.gameTrendMetric);const playerSeries=games.map(g=>{const a=analyze([g]);const m=def.player(a);return{label:formatShortDate(g.date),value:isCount?(m.count||0):metricBarPct233(m,100),display:m.display||m.short,tooltip:`${formatShortDate(g.date)} - AT: ${m.display||m.short}`}});const oppSeries=games.map(g=>{const a=analyze([g]);const m=def.opp(a);return{label:formatShortDate(g.date),value:isCount?(m.count||0):metricBarPct233(m,100),display:m.display||m.short,tooltip:`${formatShortDate(g.date)} - AD: ${m.display||m.short}`}});const title=$('#gameParamTrendTitle'),sub=$('#gameParamTrendSubtitle');if(title)title.textContent=`Evolução entre jogos: ${def.label}`;if(sub){const lvl=levelLabel(game);sub.textContent=`Nível: ${lvl}${normalizeLevel(game)==='classe'?' — incluindo registros antigos sem nível':''}. Últimos 12 meses até ${game.date}. Azul claro = jogador. Dourado = adversário.`;}setupChartHeader233('gameParamTrendBlock','gameParamTrendTitle','gameParamTrendSubtitle','gameParamTrendChart','param',sub?.textContent||'Evolução entre jogos do mesmo nível.');renderLineChart($('#gameParamTrendChart'),{benchmark:isCount?0:def.benchmark||0,pointsA:playerSeries,pointsB:oppSeries,colorA:'#61d5ff',colorB:'#ffd166',nameA:'Jogador',nameB:'Adversário',zoom:state.chartZoom.param||1,unit:isCount?'count':'percent'});}
+function distributionReportText233(m){return (m.items||[]).map(it=>`${it.label}: ${it.count}`).join(' · ')||'Sem dados';}
+function indexComparisonHtml232(a,withInfo=false){const rows=comparisonRows(a);let html='<div class="index-tv report-index-tv"><div class="index-tv-head"><div>Índice</div><div class="at-head">AT</div><div class="ad-head">AD</div></div>';rows.forEach(r=>{if(r.section)html+=`<div class="index-section-title">${escapeHtml(r.section)}</div>`;else html+=indexRowHtml232(r,withInfo);});return html+'</div>';}
+function pdocIndexRow(doc,x,y,w,r){const t=pdfTheme(),axis=x+w*.62,barMax=w*.18;if(r.kind==='distribution'){pdocText(doc,pdfMetricLabelCompact(r.label).slice(0,37),x,y,3.7,t.ink,false);pdocText(doc,distributionReportText233(r.left).slice(0,42),axis-barMax-3,y,3.4,t.ink,false,{align:'right'});doc.setFillColor(25,35,45);doc.rect(axis-.25,y-3.2,.5,4.3,'F');pdocText(doc,distributionReportText233(r.mid).slice(0,42),axis+3,y,3.4,t.ink,false,{align:'left'});return;}const at=metricBarPct233(r.left,r.scale),ad=metricBarPct233(r.mid,r.scale),bmA=metricBenchmarkPct233(r.left,r.benchmark,r.scale),bmD=metricBenchmarkPct233(r.mid,r.benchmark,r.scale);pdocText(doc,pdfMetricLabelCompact(r.label).slice(0,42),x,y,3.75,t.ink,false);pdocText(doc,r.leftDisplay,axis-barMax-3,y,3.7,t.ink,true,{align:'right'});doc.setFillColor(205,232,241);doc.rect(axis-barMax*(bmA/100),y-2.8,barMax*(bmA/100),3.6,'F');doc.setFillColor(83,207,255);doc.rect(axis-barMax*(at/100),y-2.2,barMax*(at/100),2.4,'F');doc.setFillColor(25,35,45);doc.rect(axis-.25,y-3.2,.5,4.3,'F');doc.setFillColor(242,220,185);doc.rect(axis,y-2.8,barMax*(bmD/100),3.6,'F');doc.setFillColor(242,163,58);doc.rect(axis,y-2.2,barMax*(ad/100),2.4,'F');pdocText(doc,r.midDisplay,axis+barMax+3,y,3.7,t.ink,true,{align:'left'});}
+function tableMetricsPdf222(doc,x,y,w,h,a){const t=pdfTheme();pdocCard(doc,x,y,w,h);pdocText(doc,'COMPARATIVO TÉCNICO',x+3,y+7,5.9,t.accent,true);pdocText(doc,'Índice',x+3,y+14,4.5,t.muted,true);pdocText(doc,'AT',x+w*.55,y+14,4.5,t.muted,true,{align:'center'});pdocText(doc,'AD',x+w*.76,y+14,4.5,t.muted,true,{align:'center'});const rows=comparisonRows(a).filter(r=>!r.section).slice(0,24);const rowH=(h-20)/Math.max(rows.length,1);rows.forEach((r,i)=>pdocIndexRow(doc,x+3,y+22+i*rowH,w-8,r));}
+function setup233(){const sw='2.3.3';try{const m=document.querySelector('meta[name="app-version"]');if(m)m.content=sw;}catch(e){}if(state.selectedGameId){const g=loadGames().find(x=>x.id===state.selectedGameId);if(g)openGameDetail(g.id);}}
+setup233();
+
+/* 2.3.3 patch: localizar card do gráfico entre jogos mesmo sem id fixo */
+function setupChartHeader233(blockId, titleId, subtitleId, chartId, chartKey, infoText){
+  let block=$('#'+blockId);
+  if(!block && chartId) block=$('#'+chartId)?.closest('.detail-group');
+  if(!block) return;
+  const head=block.querySelector('.mini-head'); if(!head) return;
+  let tools=head.querySelector('.chart-toolbar');
+  if(!tools){tools=document.createElement('div');tools.className='chart-toolbar';tools.innerHTML=`<button class="chart-info" type="button" aria-label="Informações do gráfico">i</button><button class="chart-zoom" data-zoom="out" type="button">−</button><button class="chart-zoom" data-zoom="in" type="button">+</button>`;head.appendChild(tools);}
+  tools.querySelector('.chart-info').onclick=()=>showInfoBox('Gráfico de evolução',`<p>${escapeHtml(infoText)}</p><p>Use + para aproximar, - para mostrar mais pontos, e arraste o gráfico horizontalmente para navegar.</p>`);
+  tools.querySelector('[data-zoom="out"]').onclick=()=>{state.chartZoom[chartKey]=Math.max(1,(state.chartZoom[chartKey]||1)-.5);const g=loadGames().find(x=>x.id===state.selectedGameId);if(g){chartKey==='inMatch'?renderGameInMatchTrend(g):renderGameParameterTrend(g);}};
+  tools.querySelector('[data-zoom="in"]').onclick=()=>{state.chartZoom[chartKey]=Math.min(5,(state.chartZoom[chartKey]||1)+.5);const g=loadGames().find(x=>x.id===state.selectedGameId);if(g){chartKey==='inMatch'?renderGameInMatchTrend(g):renderGameParameterTrend(g);}};
+}
