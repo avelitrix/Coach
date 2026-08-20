@@ -1,4 +1,4 @@
-const CACHE_NAME = 'avelicoach-2-3-3';
+const CACHE_NAME = 'avelicoach-2-3-3-corrigida';
 const APP_SHELL = [
   './',
   './index.html',

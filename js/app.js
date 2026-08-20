@@ -1532,7 +1532,7 @@ function setup232(){const gp=$('#exportGamePdfBtn');if(gp)gp.onclick=exportGameP
 setup232();
 
 /* =========================================================
-   AveliCoach 2.3.3 - correções de índices, gráficos e export
+   AveliCoach 2.3.3-corrigida - correções de índices, gráficos e export
    ========================================================= */
 try{ labels.t='T'; labels.atras_linha='Atrás'; labels.na_linha='Linha'; labels.dentro_quadra='Dentro'; }catch(e){}
 state.chartZoom = state.chartZoom || { inMatch: 1, param: 1 };
@@ -1598,7 +1598,7 @@ function metricBenchmarkPct233(m,benchmark,scale){
 function displayForMetric233(m){ return m?.short || m?.display || ''; }
 function comparisonRows(a){
   const rows=[];
-  INDEX_SECTIONS_233.forEach(sec=>{rows.push({section:sec.title});sec.keys.forEach(key=>{const def=comparisonMetricDefs[key];if(!def)return;const left=def.player(a),mid=def.opp(a);let scale=100;if(left.kind==='count'||mid.kind==='count')scale=Math.max(1,left.count||0,mid.count||0,left.benchmarkValue||0,mid.benchmarkValue||0);rows.push({key,label:def.label,info:def.info||('idx_'+key),ref:def.ref||'',benchmark:Number(def.benchmark)||0,mode:def.mode||'min',kind:left.kind||mid.kind||'ratio',scale,left,mid,leftDisplay:displayForMetric233(left),midDisplay:displayForMetric233(mid)});});});
+  INDEX_SECTIONS_233.forEach(sec=>{rows.push({section:sec.title});sec.keys.forEach(key=>{const def=comparisonMetricDefs[key];if(!def)return;const left=def.player(a),mid=def.opp(a);let scale=100;if(left.kind==='count'||mid.kind==='count'){const rawMax=Math.max(1,left.count||0,mid.count||0,left.benchmarkValue||0,mid.benchmarkValue||0);scale=Math.max(10,Math.ceil(rawMax*1.6));}rows.push({key,label:def.label,info:def.info||('idx_'+key),ref:def.ref||'',benchmark:Number(def.benchmark)||0,mode:def.mode||'min',kind:left.kind||mid.kind||'ratio',scale,left,mid,leftDisplay:displayForMetric233(left),midDisplay:displayForMetric233(mid)});});});
   return rows;
 }
 function distributionHtml233(m,side){
@@ -1631,10 +1631,40 @@ function setupChartHeader233(blockId, titleId, subtitleId, chartId, chartKey, in
 }
 function showInfoBox(title,html){const dlg=$('#infoDialog'), box=$('#infoContent');if(!dlg||!box)return;box.innerHTML=`<button class="x-btn" onclick="document.getElementById('infoDialog').close()" type="button">×</button><h2>${escapeHtml(title)}</h2>${html}`;dlg.showModal();}
 function bindDragScroll233(el){if(!el||el.dataset.dragBound)return;el.dataset.dragBound='1';let down=false,startX=0,startLeft=0;el.addEventListener('pointerdown',e=>{down=true;startX=e.clientX;startLeft=el.scrollLeft;el.classList.add('dragging');el.setPointerCapture?.(e.pointerId);});el.addEventListener('pointermove',e=>{if(!down)return;el.scrollLeft=startLeft-(e.clientX-startX);});['pointerup','pointercancel','pointerleave'].forEach(ev=>el.addEventListener(ev,()=>{down=false;el.classList.remove('dragging');}));}
+function bindChartTooltip233(scroll){
+  if(!scroll||scroll.dataset.tooltipBound)return;
+  scroll.dataset.tooltipBound='1';
+  const pop=scroll.querySelector('.chart-popover');
+  if(!pop)return;
+  let hideTimer=null;
+  const show=(dot,e)=>{
+    const text=dot.getAttribute('data-tip')||'';
+    if(!text)return;
+    const rect=scroll.getBoundingClientRect();
+    const x=(e.clientX||rect.left+rect.width/2)-rect.left+scroll.scrollLeft;
+    const y=(e.clientY||rect.top+40)-rect.top;
+    pop.textContent=text;
+    pop.hidden=false;
+    pop.style.left=Math.max(8,Math.min(scroll.scrollLeft+rect.width-190,x+12))+'px';
+    pop.style.top=Math.max(8,y-10)+'px';
+    clearTimeout(hideTimer);
+  };
+  const hide=()=>{hideTimer=setTimeout(()=>{pop.hidden=true;},1800);};
+  scroll.querySelectorAll('.chart-dot').forEach(dot=>{
+    dot.addEventListener('pointerenter',e=>show(dot,e));
+    dot.addEventListener('pointermove',e=>show(dot,e));
+    dot.addEventListener('pointerleave',hide);
+    dot.addEventListener('click',e=>{e.stopPropagation();show(dot,e);});
+    dot.addEventListener('pointerup',e=>{ if(Math.abs(e.movementX||0)<4) show(dot,e); });
+  });
+  scroll.addEventListener('scroll',()=>{pop.hidden=true;});
+}
 function renderLineChart(target,cfg){
   const pointsA=cfg.pointsA||[],pointsB=cfg.pointsB||[],pointCount=Math.max(pointsA.length,pointsB.length);if(!pointCount){target.innerHTML='<p class="line-chart-empty">Sem dados suficientes.</p>';return;}
   const zoom=cfg.zoom||1,unit=cfg.unit||'percent',suffix=unit==='percent'?'%':'';
-  const basePerPoint=unit==='count'?46:42;const W=Math.max(920,48+28+Math.max(1,pointCount-1)*basePerPoint*zoom),H=330,m={top:34,right:28,bottom:48,left:48};const innerW=W-m.left-m.right,innerH=H-m.top-m.bottom;
+  // Zoom 1 sempre mostra todo o eixo X dentro da largura disponível. Zooms maiores ampliam o SVG e permitem arrastar horizontalmente.
+  const viewportW=Math.max(320,Math.round((target.getBoundingClientRect?.().width||target.clientWidth||760)));
+  const W=Math.max(320,Math.round(viewportW*zoom)),H=330,m={top:34,right:28,bottom:48,left:48};const innerW=W-m.left-m.right,innerH=H-m.top-m.bottom;
   const allVals=[...pointsA.map(p=>Number(p.value)||0),...pointsB.map(p=>Number(p.value)||0),Number(cfg.benchmark)||0];const maxVal=unit==='percent'?100:Math.max(3,Math.ceil(Math.max(...allVals)*1.15));
   const yTicks=unit==='percent'?[0,25,50,75,100]:Array.from({length:5},(_,i)=>Math.round(maxVal*i/4));
   const coords=arr=>arr.map((s,i)=>({...s,x:m.left+(pointCount===1?innerW/2:i*(innerW/(pointCount-1))),y:m.top+innerH-(Math.max(0,Math.min(maxVal,Number(s.value)||0))/maxVal)*innerH}));
@@ -1645,12 +1675,13 @@ function renderLineChart(target,cfg){
     ${bench?`<line x1="${m.left}" y1="${benchY}" x2="${W-m.right}" y2="${benchY}" stroke="#ffd166" stroke-width="2" stroke-dasharray="8 6"/><text x="${W-m.right}" y="${benchY-8}" text-anchor="end" fill="#ffd166" font-size="11">Referência COSAT U14: ${bench}${suffix}</text>`:''}
     ${A.length?`<polyline points="${poly(A)}" fill="none" stroke="${cfg.colorA||'#61d5ff'}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>`:''}
     ${B.length?`<polyline points="${poly(B)}" fill="none" stroke="${cfg.colorB||'#ffd166'}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>`:''}
-    ${A.map(p=>`<circle cx="${p.x}" cy="${p.y}" r="4.4" fill="${cfg.colorA||'#61d5ff'}" stroke="#07131f" stroke-width="1.6"><title>${escapeHtml(p.tooltip||`${p.label} - ${cfg.nameA||'Jogador'}: ${p.display||p.value}`)}</title></circle>`).join('')}
-    ${B.map(p=>`<circle cx="${p.x}" cy="${p.y}" r="4.4" fill="${cfg.colorB||'#ffd166'}" stroke="#07131f" stroke-width="1.6"><title>${escapeHtml(p.tooltip||`${p.label} - ${cfg.nameB||'Adversário'}: ${p.display||p.value}`)}</title></circle>`).join('')}
+    ${A.map(p=>`<circle class="chart-dot" data-tip="${escapeHtml(p.tooltip||`${p.label} - ${cfg.nameA||'Jogador'}: ${p.display||p.value}`)}" cx="${p.x}" cy="${p.y}" r="4.4" fill="${cfg.colorA||'#61d5ff'}" stroke="#07131f" stroke-width="1.6"></circle>`).join('')}
+    ${B.map(p=>`<circle class="chart-dot" data-tip="${escapeHtml(p.tooltip||`${p.label} - ${cfg.nameB||'Adversário'}: ${p.display||p.value}`)}" cx="${p.x}" cy="${p.y}" r="4.4" fill="${cfg.colorB||'#ffd166'}" stroke="#07131f" stroke-width="1.6"></circle>`).join('')}
     ${pointsA.map((p,i)=>i%tickStep===0||i===pointCount-1?`<text x="${A[i]?.x??(m.left+innerW/2)}" y="${H-14}" text-anchor="middle" fill="#9fb5c8" font-size="11">${escapeHtml(p.label)}</text>`:'').join('')}
     <g transform="translate(${m.left},${m.top-18})"><circle cx="0" cy="0" r="5" fill="${cfg.colorA||'#61d5ff'}"></circle><text x="10" y="4" fill="#dff6ff" font-size="11">${escapeHtml(cfg.nameA||'Jogador')}</text>${cfg.pointsB?.length?`<circle cx="112" cy="0" r="5" fill="${cfg.colorB||'#ffd166'}"></circle><text x="122" y="4" fill="#dff6ff" font-size="11">${escapeHtml(cfg.nameB||'Adversário')}</text>`:''}</g>
-  </svg></div>`;
+  </svg><div class="chart-popover" hidden></div></div>`;
   bindDragScroll233($('.line-chart-scroll',target));
+  bindChartTooltip233($('.line-chart-scroll',target));
 }
 function pointMetricEvent233(p,key){const actor=pointActor(p);switch(key){case 'erros_forcados':return (p.ending==='erro'||p.ending==='dupla_falta')&&actor==='athlete'&&(['defesa','corrida'].includes(p.playType)||p.stroke==='corrida');case 'erros_nao_forcados':return (p.ending==='erro'||p.ending==='dupla_falta')&&actor==='athlete'&&!(['defesa','corrida'].includes(p.playType)||p.stroke==='corrida');case 'dupla_falta':return p.ending==='dupla_falta'&&actor==='athlete';case 'aces':return p.ending==='saque_direto'&&actor==='athlete';default:return pointSuccessForMetric(p,key);} }
 function countTrendKeys233(){return ['erros_forcados','erros_nao_forcados','dupla_falta','aces'];}
@@ -1668,10 +1699,10 @@ function distributionReportText233(m){return (m.items||[]).map(it=>`${it.label}:
 function indexComparisonHtml232(a,withInfo=false){const rows=comparisonRows(a);let html='<div class="index-tv report-index-tv"><div class="index-tv-head"><div>Índice</div><div class="at-head">AT</div><div class="ad-head">AD</div></div>';rows.forEach(r=>{if(r.section)html+=`<div class="index-section-title">${escapeHtml(r.section)}</div>`;else html+=indexRowHtml232(r,withInfo);});return html+'</div>';}
 function pdocIndexRow(doc,x,y,w,r){const t=pdfTheme(),axis=x+w*.62,barMax=w*.18;if(r.kind==='distribution'){pdocText(doc,pdfMetricLabelCompact(r.label).slice(0,37),x,y,3.7,t.ink,false);pdocText(doc,distributionReportText233(r.left).slice(0,42),axis-barMax-3,y,3.4,t.ink,false,{align:'right'});doc.setFillColor(25,35,45);doc.rect(axis-.25,y-3.2,.5,4.3,'F');pdocText(doc,distributionReportText233(r.mid).slice(0,42),axis+3,y,3.4,t.ink,false,{align:'left'});return;}const at=metricBarPct233(r.left,r.scale),ad=metricBarPct233(r.mid,r.scale),bmA=metricBenchmarkPct233(r.left,r.benchmark,r.scale),bmD=metricBenchmarkPct233(r.mid,r.benchmark,r.scale);pdocText(doc,pdfMetricLabelCompact(r.label).slice(0,42),x,y,3.75,t.ink,false);pdocText(doc,r.leftDisplay,axis-barMax-3,y,3.7,t.ink,true,{align:'right'});doc.setFillColor(205,232,241);doc.rect(axis-barMax*(bmA/100),y-2.8,barMax*(bmA/100),3.6,'F');doc.setFillColor(83,207,255);doc.rect(axis-barMax*(at/100),y-2.2,barMax*(at/100),2.4,'F');doc.setFillColor(25,35,45);doc.rect(axis-.25,y-3.2,.5,4.3,'F');doc.setFillColor(242,220,185);doc.rect(axis,y-2.8,barMax*(bmD/100),3.6,'F');doc.setFillColor(242,163,58);doc.rect(axis,y-2.2,barMax*(ad/100),2.4,'F');pdocText(doc,r.midDisplay,axis+barMax+3,y,3.7,t.ink,true,{align:'left'});}
 function tableMetricsPdf222(doc,x,y,w,h,a){const t=pdfTheme();pdocCard(doc,x,y,w,h);pdocText(doc,'COMPARATIVO TÉCNICO',x+3,y+7,5.9,t.accent,true);pdocText(doc,'Índice',x+3,y+14,4.5,t.muted,true);pdocText(doc,'AT',x+w*.55,y+14,4.5,t.muted,true,{align:'center'});pdocText(doc,'AD',x+w*.76,y+14,4.5,t.muted,true,{align:'center'});const rows=comparisonRows(a).filter(r=>!r.section).slice(0,24);const rowH=(h-20)/Math.max(rows.length,1);rows.forEach((r,i)=>pdocIndexRow(doc,x+3,y+22+i*rowH,w-8,r));}
-function setup233(){const sw='2.3.3';try{const m=document.querySelector('meta[name="app-version"]');if(m)m.content=sw;}catch(e){}if(state.selectedGameId){const g=loadGames().find(x=>x.id===state.selectedGameId);if(g)openGameDetail(g.id);}}
+function setup233(){const sw='2.3.3-corrigida';try{const m=document.querySelector('meta[name="app-version"]');if(m)m.content=sw;}catch(e){}if(state.selectedGameId){const g=loadGames().find(x=>x.id===state.selectedGameId);if(g)openGameDetail(g.id);}}
 setup233();
 
-/* 2.3.3 patch: localizar card do gráfico entre jogos mesmo sem id fixo */
+/* 2.3.3-corrigida patch: localizar card do gráfico entre jogos mesmo sem id fixo */
 function setupChartHeader233(blockId, titleId, subtitleId, chartId, chartKey, infoText){
   let block=$('#'+blockId);
   if(!block && chartId) block=$('#'+chartId)?.closest('.detail-group');

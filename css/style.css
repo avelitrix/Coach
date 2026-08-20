@@ -143,3 +143,12 @@ body.recording .app-header{display:none!important}
 .line-chart-wrap svg{width:auto;height:100%;}
 @media(max-width:760px){.line-chart-wrap{min-height:410px}.index-tv{gap:5px}.index-tv-row{min-height:34px}.index-tv-head{font-size:.72rem}.idx-val{font-size:.72rem}.idx-bar-bg{height:10px}.idx-bar-real{height:7px}.idx-axis{height:16px}.chart-toolbar{width:100%;justify-content:flex-end}.mini-head{align-items:flex-start}}
 @media(max-width:520px){.index-tv-row,.index-tv-head{grid-template-columns:minmax(118px,1fr) 38px minmax(48px,.95fr) 2px minmax(48px,.95fr) 38px;column-gap:3px}.index-tv-row.distribution{grid-template-columns:minmax(118px,1fr) minmax(0,1fr) 2px minmax(0,1fr)}.index-name{font-size:.72rem;gap:4px}.index-info{width:18px;height:18px;font-size:.68rem}.idx-val{font-size:.66rem}.dist-side{grid-template-columns:32px 1fr;font-size:.58rem}.line-chart-wrap{min-height:420px}}
+
+
+/* === AveliCoach 2.3.3 corrigida — zoom mínimo, tooltips e barras mobile === */
+.chart-popover{position:absolute;z-index:20;max-width:210px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:rgba(7,19,31,.96);box-shadow:0 8px 22px rgba(0,0,0,.35);color:var(--ink);font-size:.78rem;line-height:1.25;white-space:pre-wrap;pointer-events:none}.line-chart-scroll{position:relative}.chart-dot{cursor:pointer}.chart-dot:hover{filter:brightness(1.18)}
+.index-tv-row{grid-template-columns:minmax(132px,1fr) 58px minmax(54px,.8fr) 2px minmax(54px,.8fr) 58px;}
+.index-tv-head{grid-template-columns:minmax(132px,1fr) 58px minmax(54px,.8fr) 2px minmax(54px,.8fr) 58px;}
+.idx-val{white-space:normal;line-height:1.05;overflow:visible;word-break:normal}.idx-val.at{text-align:right}.idx-val.ad{text-align:left}.idx-bar-cell{overflow:hidden}.idx-bar-bg{max-width:100%}.idx-bar-real{max-width:100%}
+@media(max-width:760px){.index-tv-row,.index-tv-head{grid-template-columns:minmax(104px,1fr) 56px minmax(44px,.66fr) 2px minmax(44px,.66fr) 56px;column-gap:3px}.idx-val{font-size:.68rem;line-height:1.05}.index-name span{font-size:.76rem}.line-chart-wrap{min-height:420px}.line-chart-scroll svg .chart-dot{r:3.5}}
+@media(max-width:520px){.index-tv-row,.index-tv-head{grid-template-columns:minmax(96px,1fr) 54px minmax(38px,.6fr) 2px minmax(38px,.6fr) 54px;column-gap:2px}.index-name{font-size:.7rem}.index-name span{font-size:.7rem}.idx-val{font-size:.66rem}.idx-bar-bg{height:9px}.idx-bar-real{height:6px}.line-chart-wrap{min-height:430px}}
